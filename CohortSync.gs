@@ -54,7 +54,12 @@ function pasteNewFormulas_(sheet, startRow, count, width) {
   const target = sheet.getRange(startRow, 1, count, width);
   source.copyTo(target, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
   source.copyTo(target, SpreadsheetApp.CopyPasteType.PASTE_DATA_VALIDATION, false);
-  source.copyTo(target, SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
+}
+
+function adjustResultFormula_(formula, templateRow, newRow) {
+  if (!formula) throw new Error('The existing RESULT_DATA template is missing a calculated formula.');
+  const pat = new RegExp('\\b([A-Z]{1,3})' + templateRow + '\\b', 'g');
+  return formula.replace(pat, (_whole, col) => col + newRow);
 }
 
 function buildResultTemplate_(key, exam) {
@@ -237,10 +242,22 @@ function syncNewCohortIntake() {
     });
 
     if (newResults.length) {
-      const start = results.getLastRow() + 1;
+      const templateRow = results.getLastRow();
+      const template = results.getRange(templateRow, 1, 1, 14).getFormulas()[0];
+      const sourceColumns = [8, 10, 11, 12];
+      if (sourceColumns.some(idx => !template[idx])) {
+        throw new Error('RESULTS_DATA is missing grade/attendance formulas in its final template row.');
+      }
+      const start = templateRow + 1;
       ensureIntakeCapacity_(results, start + newResults.length - 1);
       pasteNewFormulas_(results, start, newResults.length, 14);
       results.getRange(start, 1, newResults.length, 8).setValues(newResults);
+      results.getRange(start, 9, newResults.length, 1)
+        .setFormulas(newResults.map((row, idx) =>
+          [adjustResultFormula_(template[8], templateRow, start + idx)]));
+      results.getRange(start, 11, newResults.length, 3)
+        .setFormulas(newResults.map((row, idx) =>
+          [10, 11, 12].map(col => adjustResultFormula_(template[col], templateRow, start + idx))));
     }
     if (newMaster.length) {
       const start = masters.getLastRow() + 1;
