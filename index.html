@@ -147,6 +147,7 @@ function chooseCohortForm(year,form){
  select('form',availableForms(year),false);
  $('form').value=form;
  setExams();
+ $('classFilter').value=''; // Reset to all classes when switching cohort/form.
  syncCohortMenu();
  closeCohortMenu();
  render();
