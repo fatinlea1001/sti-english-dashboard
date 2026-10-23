@@ -350,7 +350,105 @@ function setClasses(){
  const origin=(tab==='Item analysis'&&D.items.some(r=>String(r.SPM_Cohort)===$('cohort').value&&r.Exam===$('exam').value))?D.items:D.results;
  select('classFilter',unique(origin.filter(r=>String(r.SPM_Cohort)===$('cohort').value&&r.Exam===$('exam').value).map(r=>r.Class_At_Exam||'Unassigned')),'All classes')
 }
-function filtered(rows,exam=true){return rows.filter(r=>String(r.SPM_Cohort)===$('cohort').value&&(!exam||r.Exam===$('exam').value)&&(!$('form').value||r.Form===$('form').value)&&(!$('classFilter').value||(r.Class_At_Exam||r.Class||'Unassigned')===$('classFilter').value)&&(!$('search').value||String(r.Student_Name||'').toLowerCase().includes($('search').value.trim().toLowerCase())))}
+function filtered(rows,exam=true){
+ // Search is a global quick lookup on Overview and Class Performance.
+ const nameFilter=(tab==='Overview'||tab==='Class performance')?'':$('search').value.trim().toLowerCase();
+ return rows.filter(r=>String(r.SPM_Cohort)===$('cohort').value&&(!exam||r.Exam===$('exam').value)
+  &&(!$('form').value||r.Form===$('form').value)
+  &&(!$('classFilter').value||(r.Class_At_Exam||r.Class||'Unassigned')===$('classFilter').value)
+  &&(!nameFilter||String(r.Student_Name||'').toLowerCase().includes(nameFilter)));
+}
+let selectedStudentFocus='';
+let searchEntries=[];
+function closeStudentLookup(){
+ $('student-search-results').hidden=true;
+ $('search').setAttribute('aria-expanded','false');
+}
+function findStudentMatches(q){
+ const found=new Map();
+ D.results.forEach(r=>{
+  const name=String(r.Student_Name||'').trim();
+  if(!name||!name.toLowerCase().includes(q))return;
+  const cls=String(r.Class_At_Exam||'').trim();
+  const yr=String(r.SPM_Cohort||'').trim(),form=String(r.Form||'').trim();
+  if(!yr||!form)return;
+  const key=[yr,form,cls,name.toUpperCase()].join('|');
+  const priority=(r.Exam===$('exam').value?12:0)+(yr===$('cohort').value?6:0)+
+   (form===$('form').value?4:0)+(mark(r)!==null?15:0)+(cls?5:0);
+  const existing=found.get(key);
+  if(!existing||priority>existing.priority)found.set(key,{record:r,priority});
+ });
+ return [...found.values()].sort((a,b)=>{
+  const an=String(a.record.Student_Name).toLowerCase();
+  const bn=String(b.record.Student_Name).toLowerCase();
+  return Number(bn.startsWith(q))-Number(an.startsWith(q))||
+   b.priority-a.priority||an.localeCompare(bn)||
+   Number(b.record.SPM_Cohort)-Number(a.record.SPM_Cohort);
+ });
+}
+function updateStudentLookup(){
+ if(!D){closeStudentLookup();return}
+ const q=$('search').value.trim().toLowerCase();
+ const panel=$('student-search-results');
+ if(q.length<2){closeStudentLookup();return}
+ const matches=findStudentMatches(q);
+ searchEntries=matches.slice(0,20);
+ let html='<div class="lookup-title">'+matches.length+' matching class '+(matches.length===1?'record':'records')+'</div>';
+ if(!matches.length)html+='<div class="lookup-empty">No student found. Try a shorter name.</div>';
+ else {
+  html+=searchEntries.map(({record:r},i)=>{
+   const name=String(r.Student_Name||'').trim(),year=String(r.SPM_Cohort||''),
+    form=String(r.Form||''),cls=String(r.Class_At_Exam||'').trim();
+   return '<div class="lookup-item"><div class="lookup-info"><b>'+esc(name)+'</b>'+
+    '<span>'+esc(cls?'Class: '+cls:'Class not recorded for this examination')+'</span>'+
+    '<span>'+esc('SPM '+year+' · '+form+' · '+r.Exam)+'</span></div>'+
+    '<button type="button" class="lookup-link" data-lookup-index="'+i+'"'+
+    (!cls?' disabled title="Class not recorded"':'')+'>View class →</button></div>';
+  }).join('');
+  if(matches.length>20)html+='<div class="lookup-note">Showing 20 results. Type more letters to narrow the search.</div>';
+ }
+ panel.innerHTML=html;panel.hidden=false;
+ $('search').setAttribute('aria-expanded','true');
+}
+function goToStudentClass(index){
+ const match=searchEntries[index];if(!match||!D)return;
+ const r=match.record,year=String(r.SPM_Cohort),form=String(r.Form),
+  exam=String(r.Exam),cls=String(r.Class_At_Exam||'').trim();
+ if(!cls)return;
+ $('cohort').value=year;
+ select('form',availableForms(year),false);$('form').value=form;
+ tab='Class performance';
+ setExams();
+ if([...$('exam').options].some(o=>o.value===exam))$('exam').value=exam;
+ setClasses();
+ $('classFilter').value=[...$('classFilter').options].some(o=>o.value===cls)?cls:'';
+ selectedStudentFocus=String(r.Student_Name).trim();
+ $('search').value='';
+ syncCohortMenu();closeStudentLookup();
+ render();
+ requestAnimationFrame(()=>{
+  const studentRow=document.querySelector('tr.student-focused');
+  if(studentRow)studentRow.scrollIntoView({behavior:'smooth',block:'center'});
+ });
+}
+$('student-search-results').addEventListener('click',ev=>{
+ const btn=ev.target.closest('[data-lookup-index]');
+ if(btn&&!btn.disabled)goToStudentClass(Number(btn.dataset.lookupIndex));
+});
+$('search').addEventListener('focus',updateStudentLookup);
+document.addEventListener('click',ev=>{
+ if(!$('student-search-wrap').contains(ev.target))closeStudentLookup();
+});
+document.addEventListener('keydown',ev=>{
+ if(ev.key==='Escape'&&!$('student-search-results').hidden){
+  closeStudentLookup();$('search').blur();
+ }
+ if(ev.key==='Enter'&&document.activeElement===$('search')&&!$('student-search-results').hidden&&
+  searchEntries.length&&String(searchEntries[0].record.Class_At_Exam||'').trim()){
+  ev.preventDefault();goToStudentClass(0);
+ }
+});
+
 function stats(rows){let marks=rows.map(mark).filter(x=>x!==null),pass=marks.filter(x=>x>=D.passMark).length;return {count:rows.length,sat:marks.length,pass,fail:marks.length-pass,missing:rows.length-marks.length,avg:marks.length?(marks.reduce((a,b)=>a+b,0)/marks.length).toFixed(1):'—',rate:marks.length?(pass/marks.length*100).toFixed(1):null}}
 function table(head,rows){return rows.length?'<div class="scroll"><table><thead><tr>'+head.map(x=>'<th>'+esc(x)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+esc(c===''?'—':c)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>':'<p class="muted">No data entered for these filters yet.</p>'}
 function card(label,value){return '<div class="card"><span class="muted">'+label+'</span><b>'+value+'</b></div>'}
@@ -380,17 +478,20 @@ function gradeDistribution(rows){
  return output;
 }
 function classStudentResults(rows){
+ if(!rows.length)return '<p class="muted">No students match these cohort, exam and class filters.</p>';
  const sorted=rows.slice().sort((a,b)=>
   String(a.Class_At_Exam||'').localeCompare(String(b.Class_At_Exam||''))||
   String(a.Student_Name||'').localeCompare(String(b.Student_Name||'')));
- return table(['No.','Student','Year','Form','Class','Exam','Mark /100','Grade','Result'],
-  sorted.map((r,i)=>{
-   const g=gradeFor(r.Total_Mark_100,r.Attendance_Optional);
-   const m=mark(r);
-   return [i+1,r.Student_Name,r.Academic_Year,r.Form,r.Class_At_Exam,r.Exam,
-    g==='TH'?'TH':m??'—',g||'—',
-    g==='TH'?'Absent':m===null?'Not entered':m>=D.passMark?'Pass':'Fail'];
-  }));
+ const head=['No.','Student','Year','Form','Class','Exam','Mark /100','Grade','Result'];
+ let html='<div class="scroll"><table><thead><tr>'+head.map(v=>'<th>'+esc(v)+'</th>').join('')+'</tr></thead><tbody>';
+ sorted.forEach((r,i)=>{
+  const g=gradeFor(r.Total_Mark_100,r.Attendance_Optional),m=mark(r);
+  const values=[i+1,r.Student_Name,r.Academic_Year,r.Form,r.Class_At_Exam,r.Exam,
+   g==='TH'?'TH':m??'—',g||'—',g==='TH'?'Absent':m===null?'Not entered':m>=D.passMark?'Pass':'Fail'];
+  const focused=selectedStudentFocus&&String(r.Student_Name||'').trim()===selectedStudentFocus;
+  html+='<tr'+(focused?' class="student-focused"':'')+'>'+values.map(v=>'<td>'+esc(v===''?'—':v)+'</td>').join('')+'</tr>';
+ });
+ return html+'</tbody></table></div>';
 }
 function selectDashboardPage(page){
  tab=page;
@@ -421,7 +522,8 @@ if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(
   '<p class="muted">Grade counts for the selected SPM cohort, examination, form and class. Every grade is shown, including zero counts.</p>'+
   gradeDistribution(rows)+'</section>';
  html+='<section><h2>Students · '+esc(className||'All classes')+'</h2>'+
-  '<p class="muted">Student names and results for the selected class. Use the student-search filter to find someone. TH is absent; unentered marks are not counted as failures.</p>'+
+  (selectedStudentFocus?'<div class="student-jump-note">Showing the class containing '+esc(selectedStudentFocus)+'. The student is highlighted below.</div>':'')+
+  '<p class="muted">Names and results for the selected class. TH means absent; unentered marks are not counted as failures.</p>'+
   classStudentResults(rows)+'</section>';
 }}
 
@@ -484,6 +586,6 @@ if(tab==='Item analysis'){
  }
 }
 $('content').innerHTML=html}
-$('exam').onchange=()=>{setClasses();render()};$('classFilter').onchange=render;$('search').oninput=render;if(urlSettings.get('setup')==='1')showConnectionSetup();
+$('exam').onchange=()=>{selectedStudentFocus='';setClasses();render()};$('classFilter').onchange=()=>{selectedStudentFocus='';render()};$('search').oninput=()=>{updateStudentLookup();if(tab!=='Overview'&&tab!=='Class performance')render()};if(urlSettings.get('setup')==='1')showConnectionSetup();
 load();
 </script></body></html>
