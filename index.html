@@ -167,7 +167,23 @@ async function load(){
   showConnectionSetup();
  }finally{$('refresh').disabled=false}
 }
-function setExams(){const available=unique(D.results.filter(r=>String(r.SPM_Cohort)===$('cohort').value).map(r=>r.Exam));select('exam',['TOV','AR1','AR2','AR3','SPM'].filter(x=>available.includes(x)).concat(available.filter(x=>!['TOV','AR1','AR2','AR3','SPM'].includes(x))),false);setClasses()}
+function setExams(){
+ const cohort=$('cohort').value;
+ const candidates=D.results.filter(r=>String(r.SPM_Cohort)===cohort);
+ const available=unique(candidates.map(r=>r.Exam));
+ const preferred=['TOV','AR1','AR2','AR3','SPM'];
+ const ordered=preferred.filter(x=>available.includes(x)).concat(available.filter(x=>!preferred.includes(x)));
+ select('exam',ordered,false);
+ // Default to an examination with real entered marks.
+ // For SPM 2026 this is AR3; for SPM 2027 this is currently TOV.
+ const totals=ordered.map(ex=>({exam:ex,count:candidates.filter(r=>r.Exam===ex&&mark(r)!==null).length}));
+ const selected=totals.find(x=>x.exam===$('exam').value);
+ if((!selected||selected.count===0)&&totals.some(x=>x.count>0)){
+  const best=totals.slice().sort((a,b)=>b.count-a.count)[0];
+  $('exam').value=best.exam;
+ }
+ setClasses()
+}
 function setClasses(){
  const origin=(tab==='Item analysis'&&D.items.some(r=>String(r.SPM_Cohort)===$('cohort').value&&r.Exam===$('exam').value))?D.items:D.results;
  select('classFilter',unique(origin.filter(r=>String(r.SPM_Cohort)===$('cohort').value&&r.Exam===$('exam').value).map(r=>r.Class_At_Exam||'Unassigned')),'All classes')
