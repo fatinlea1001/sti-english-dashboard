@@ -98,7 +98,7 @@ body{background:#fff5f8;color:#4c2940}header,nav{background:#54263f}header small
   <select id="form" hidden aria-hidden="true" tabindex="-1"></select>
   <select id="exam" hidden aria-hidden="true" tabindex="-1"></select>
  </div>
- <label>Class at exam<select id="classFilter"></select></label>
+ <select id="classFilter" hidden aria-hidden="true" tabindex="-1"></select>
  <div class="student-search" id="student-search-wrap">
  <label for="search">Student search</label>
  <input id="search" placeholder="Find a student in any cohort…" autocomplete="off" aria-controls="student-search-results" aria-expanded="false" aria-autocomplete="list">
@@ -383,7 +383,8 @@ function setExams(){
 }
 function setClasses(){
  const origin=(tab==='Item analysis'&&D.items.some(r=>String(r.SPM_Cohort)===$('cohort').value&&r.Exam===$('exam').value))?D.items:D.results;
- select('classFilter',unique(origin.filter(r=>String(r.SPM_Cohort)===$('cohort').value&&r.Exam===$('exam').value).map(r=>r.Class_At_Exam||'Unassigned')),'All classes')
+ select('classFilter',unique(origin.filter(r=>String(r.SPM_Cohort)===$('cohort').value&&r.Exam===$('exam').value).map(r=>r.Class_At_Exam||'Unassigned')),'All classes');
+ $('classFilter').value=''; // All classes are visible; do not silently retain an invisible filter.
 }
 function filtered(rows,exam=true){
  // Search is a global quick lookup on Overview and Class Performance.
@@ -456,7 +457,7 @@ function goToStudentClass(index){
  setExams();
  if([...$('exam').options].some(o=>o.value===exam))$('exam').value=exam;
  setClasses();
- $('classFilter').value=[...$('classFilter').options].some(o=>o.value===cls)?cls:'';
+ $('classFilter').value=''; // Student navigation highlights a row without hiding other classes.
  selectedStudentFocus=String(r.Student_Name).trim();
  $('search').value='';
  updateCohortSummary();closeStudentLookup();
@@ -557,8 +558,8 @@ if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(
   '<p class="muted">Grade counts for the selected SPM cohort, examination, form and class. Every grade is shown, including zero counts.</p>'+
   gradeDistribution(rows)+'</section>';
  html+='<section><h2>Students · '+esc(className||'All classes')+'</h2>'+
-  (selectedStudentFocus?'<div class="student-jump-note">Showing the class containing '+esc(selectedStudentFocus)+'. The student is highlighted below.</div>':'')+
-  '<p class="muted">Names and results for the selected class. TH means absent; unentered marks are not counted as failures.</p>'+
+  (selectedStudentFocus?'<div class="student-jump-note">Student '+esc(selectedStudentFocus)+' is highlighted below.</div>':'')+
+  '<p class="muted">Names and results for all classes in the selected cohort, form and exam. TH means absent; unentered marks are not counted as failures.</p>'+
   classStudentResults(rows)+'</section>';
 }}
 
