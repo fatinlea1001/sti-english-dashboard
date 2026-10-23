@@ -1,28 +1,60 @@
-# English SPM Dashboard — Live Google Sheets Connection
+# English SPM Dashboard — Multi-Cohort System
 
-This repository hosts the HTML dashboard. The source data stays in the existing Google Sheet, and you only update your Sheet when entering new marks, changing student rosters, recording intervention activities, or adding Paper 1–4 item analysis.
+This GitHub Pages dashboard reads current marks and class data from the existing Google Sheet.
 
-## One-time Apps Script setup
-1. Open [English Performance Dashboard — SPM Cohorts](https://docs.google.com/spreadsheets/d/1HHL92HTiXhSvXAE-1g3mRIVUdyM16agTJw1lPf7pEf0/edit).
-2. Choose **Extensions → Apps Script**.
-3. Replace **Code.gs** with the full contents of [AppsScriptBackend.gs](./AppsScriptBackend.gs) from this repository. This is a read-only JSON/JSONP service (not the full dashboard UI).
-4. Save, then choose **Deploy → New deployment → Web app**. Select **Execute as: Me**, and **Who has access: Anyone**, then **Deploy** and authorise.
-5. Copy the web app URL ending in **/exec**.
-6. Open **https://fatinlea1001.github.io/sti-english-dashboard/?setup=1**.
-7. Paste the **/exec** URL into the connection box and click **Connect & refresh**.
-8. Click **Copy shareable dashboard link**. **Share that complete link** (including its `?api=` parameter) or embed it in Google Sites; the bare GitHub Pages URL does not carry the configured endpoint to new visitors.
+- [Open the live Google Sheet](https://docs.google.com/spreadsheets/d/1HHL92HTiXhSvXAE-1g3mRIVUdyM16agTJw1lPf7pEf0/edit)
+- [Open the dashboard](https://fatinlea1001.github.io/sti-english-dashboard/)
+- **Existing cohorts:** SPM 2026 (Form 5 during 2026), SPM 2027 (Form 4 during 2026)
+- **Next Form 4 in 2027:** SPM cohort **2028**
 
-## Future updates
-- Change marks or student details in Google Sheets → reload the dashboard or press **Refresh from Sheet**.
-- Add 2027/2028 cohorts using the existing column structure → reload.
-- Change dashboard structure/design/features → edit `index.html` in this GitHub repository.
-- Modify data feed or add backend fields → update Apps Script and redeploy a new version under the same web app deployment.
+## One-time setup for adding future cohorts
 
-## Caution: student privacy
-Your original Google Sheet **can remain Restricted**. However **anyone who has access to the public dashboard or its Apps Script feed can access student data returned by the endpoint** (names, classes, scores, progress). The `noindex` meta tag is a request to search engines, not an access control. Never store credentials, API keys, or student data exports in this public GitHub repository.
+If the GitHub dashboard currently says "Apps Script connected", its existing Code.gs/web app connection **does not need to be replaced or redeployed** for this upgrade.
 
-## Troubleshooting
-If the dashboard shows a connection error, check that the Apps Script deployment **Who has access** is **Anyone** and that you are using the **/exec** URL (not `/dev`). After you edit Apps Script backend code, use **Deploy → Manage deployments → Edit → New version → Deploy**. On GitHub, use **Refresh from Sheet** after the deployment is updated.
+1. Open the [existing Google Sheet](https://docs.google.com/spreadsheets/d/1HHL92HTiXhSvXAE-1g3mRIVUdyM16agTJw1lPf7pEf0/edit).
+2. Click **Extensions → Apps Script**.
+3. In the left panel beside **Files**, click **+ → Script**.
+4. Name the file **CohortSync** (Google adds the `.gs` extension).
+5. Open [CohortSync.gs](./CohortSync.gs) in this GitHub repository. Copy the **entire** source code, paste it into the new Apps Script `CohortSync.gs` file, and **Save**.
+6. Return to Google Sheets and **reload** it. A new **English Dashboard** menu should appear.
+7. This is a **one-time setup**. Keep your existing `Code.gs` untouched.
 
-## Data tabs
-`RESULTS_DATA`, `HEADCOUNT_TRACKER`, `ITEM_ANALYSIS_DATA`, `TARGETS`, `INTERVENTION`, and `SETTINGS` are the read-only data sources. Blank or absent marks remain blank.
+Only `Code.gs` handles the read-only public data feed. `CohortSync.gs` adds a **private spreadsheet-menu action** for importing new students. That action is **not** an endpoint callable by public dashboard visitors.
+
+## Add a new batch in 2027
+
+Open the **NEW_COHORT_INTAKE** tab and enter the following columns in order:
+
+| SPM_Cohort | Academic_Year | Form | Class | Student_Name | Enrolment_Status |
+|---|---|---|---|---|---|
+| 2028 | 2027 | Form 4 | *student's actual class* | *student's actual name* | Active |
+
+**The row above is an example only. Do not treat it as a student record.**
+
+- Use one row per student. Leave **Sync_Status** blank; the importer fills it. The Notes column is optional.
+- You can paste an entire class or several classes at once.
+- Choose **English Dashboard → Sync New Cohort Intake**.
+- The script creates a row in **STUDENT_MASTER**, the year/form/class row in **ENROLMENT**, five blank exam slots (TOV, AR1, AR2, AR3, SPM) in **RESULTS_DATA**, a new **HEADCOUNT_TRACKER** row, and a **HEADCOUNT_SUMMARY** row. Existing names, scores, targets and item-analysis records are not intentionally overwritten.
+- **After the one-time roster sync**, enter actual marks in `RESULTS_DATA` column H; set Absent in column J when appropriate. Grades, pass flags, and headcount formulas update automatically.
+- Open **COHORT_OVERVIEW** for a per-cohort rollup. Refresh the GitHub dashboard and choose **SPM 2028 → Form 4**.
+- When the **same** SPM 2027 students become Form 5 in academic year 2027, paste their **same names and cohort (2027)** with Form 5 / actual class into **NEW_COHORT_INTAKE**, then sync again. This updates enrolment and previously blank exam class assignments without adding duplicate students.
+
+Do **not** sort or move rows in `RESULTS_DATA`, `HEADCOUNT_TRACKER`, or `HEADCOUNT_SUMMARY`; older headcount formulas use fixed exam-row references. Use filter views instead.
+
+## What updates automatically?
+
+- Google Sheets marks / attendance / targets → calculated fields update in Sheets.
+- New students synced from the intake tab → master, enrolment, results, tracker and headcount rows are prepared.
+- COHORT_OVERVIEW → dynamic cohort counts and marks coverage without fixed 2027-only ranges.
+- GitHub dashboard → reads the new cohort/form values from the existing live Sheets feed when refreshed.
+- Dashboard layout/features → change `index.html` on GitHub only if the *design* needs changing.
+
+**Important:** The original `OVERVIEW` tab was built specifically for SPM 2027. Use the new `COHORT_OVERVIEW` tab when you need multi-cohort results.
+
+## Existing dashboard Apps Script setup (only if not connected yet)
+
+The original [AppsScriptBackend.gs](./AppsScriptBackend.gs) is the read-only backend. If the dashboard isn't yet connected, install it as Code.gs, deploy it as a web app with **Execute as Me**, and connect its `/exec` URL at [Dashboard connection setup](https://fatinlea1001.github.io/sti-english-dashboard/?setup=1). If it already works, **do not repeat this step**.
+
+## Confidentiality
+
+Keep the Google Sheet restricted to authorised staff. The current public dashboard and its deployed read-only feed can still expose returned students' names and marks to people who obtain the URL. `noindex` requests avoidance of search listing, but it is **not** an access-control measure. Never upload exported student data or Google credentials to this public GitHub repository.
