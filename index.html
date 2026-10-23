@@ -51,6 +51,27 @@ body{background:#fff5f8;color:#4c2940}header,nav{background:#54263f}header small
 @media(max-width:900px){.filters{padding:18px;gap:12px}}
 @media(max-width:620px){.cohort-picker{flex:1 1 100%;width:100%}.cohort-menu{left:0;width:min(100%,330px)}.cohort-forms{position:static;left:auto;top:auto;width:100%;margin:2px 0 9px;box-shadow:none;border:1px solid #f1dae5}.filters .student-search{flex:1 1 100%}.filters>label{flex:1 1 140px}}
 @media print{.cohort-menu{display:none!important}}
+
+/* Student search lookup appears as a floating card without changing Overview totals. */
+.filters .student-search{position:relative;display:grid;gap:6px;min-width:245px;flex:1 1 280px}
+.student-search label{font-size:14px;font-weight:800;color:#54263f}
+.filters .student-search input{width:100%;min-width:0}
+.filters .student-search input:focus-visible{outline:3px solid #e89abc;outline-offset:2px}
+.student-search-results{position:absolute;top:calc(100% + 8px);left:0;width:min(490px,90vw);max-height:min(70vh,530px);overflow:auto;background:#fff;border:1px solid #e4bbd0;box-shadow:0 18px 48px #54263f38;border-radius:15px;padding:11px;z-index:350}
+.student-search-results[hidden]{display:none!important}
+.student-search-results .lookup-title{font-size:12px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;color:#986580;padding:8px 10px 10px}
+.student-search-results .lookup-item{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;border-top:1px solid #f4dfeb;padding:12px 10px}
+.student-search-results .lookup-info{flex:1 1 205px;min-width:0}
+.student-search-results .lookup-info b{display:block;font-size:14px;overflow-wrap:anywhere;color:#55243f}
+.student-search-results .lookup-info span{display:block;font-size:12px;color:#806277;line-height:1.6;margin-top:3px}
+.filters .student-search-results .lookup-link{font-size:13px;min-height:38px;padding:8px 12px;background:#f8deea;border-color:#eabfd2;white-space:nowrap;font-weight:800;flex:0 0 auto}
+.filters .student-search-results .lookup-link:hover{background:#f3c9dd}
+.student-search-results .lookup-empty{font-size:13px;padding:12px;color:#806277}
+.student-search-results .lookup-note{font-size:12px;padding:8px 10px;color:#997088}
+.student-focused{background:#fde1ed!important;outline:2px solid #ca6397;outline-offset:-2px}
+.student-jump-note{padding:10px 14px;border:1px solid #ecc7da;background:#fff0f7;border-radius:10px;color:#6f3655;font-weight:650;margin-bottom:14px}
+@media(max-width:620px){.student-search-results{width:min(100%,calc(100vw - 44px));max-height:55vh}}
+@media print{.student-search-results{display:none!important}}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>English Performance Dashboard</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort &amp; Form</label>
@@ -61,7 +82,11 @@ body{background:#fff5f8;color:#4c2940}header,nav{background:#54263f}header small
  </div>
  <label>Exam<select id="exam"></select></label>
  <label>Class at exam<select id="classFilter"></select></label>
- <label class="student-search">Student search<input id="search" placeholder="Type a student’s name"></label>
+ <div class="student-search" id="student-search-wrap">
+ <label for="search">Student search</label>
+ <input id="search" placeholder="Find a student in any cohort…" autocomplete="off" aria-controls="student-search-results" aria-expanded="false" aria-autocomplete="list">
+ <div id="student-search-results" class="student-search-results" hidden></div>
+</div>
  <label>Data<button id="refresh" onclick="load()">Refresh from Sheet</button></label>
  <label>Report<button onclick="window.print()">Print</button></label>
 </div><p id="status" role="status">Connecting to your Google Sheet…</p>
