@@ -24,7 +24,7 @@ body{background:#fff5f8;color:#4c2940}header,nav{background:#54263f}header small
 .grade-subtitle{margin-top:12px}
 @media(max-width:500px){.grade-line{grid-template-columns:44px minmax(70px,1fr) 75px;gap:8px}}
 
-/* Larger filter controls and two-level cohort → form selector. */
+/* Cohort → Form → Exam cascading menu */
 .filters{padding:22px 24px;gap:17px;align-items:flex-end;overflow:visible;position:relative;z-index:3}
 .filters>label,.cohort-picker{min-width:125px;position:relative}
 .filters label,.cohort-picker>label{font-size:14px;font-weight:800;letter-spacing:.01em;color:#54263f;line-height:1.4}
@@ -72,15 +72,32 @@ body{background:#fff5f8;color:#4c2940}header,nav{background:#54263f}header small
 .student-jump-note{padding:10px 14px;border:1px solid #ecc7da;background:#fff0f7;border-radius:10px;color:#6f3655;font-weight:650;margin-bottom:14px}
 @media(max-width:620px){.student-search-results{width:min(100%,calc(100vw - 44px));max-height:55vh}}
 @media print{.student-search-results{display:none!important}}
+
+/* Three-level cohort picker: mouse hover on desktop, tap/click on mobile. */
+.cohort-picker{flex:0 0 335px;min-width:285px}
+.filters #exam[hidden]{display:none!important}
+.cohort-form-row{position:relative}
+.filters .cohort-form-button{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:left;border:0;background:transparent;color:#532640;font-weight:800;border-radius:9px;min-height:54px;padding:11px 12px}
+.filters .cohort-form-button:hover,.cohort-form-row.is-expanded>.cohort-form-button,.cohort-form-row:focus-within>.cohort-form-button{background:#fae6f0}
+.cohort-exams{display:none;position:absolute;left:calc(100% - 1px);top:-8px;width:235px;background:white;border:1px solid #e4bdd1;border-radius:13px;box-shadow:0 14px 32px #4e213a29;padding:9px;z-index:302}
+.cohort-form-row:focus-within>.cohort-exams,.cohort-form-row.is-expanded>.cohort-exams{display:block}
+@media(hover:hover) and (pointer:fine){.cohort-form-row:hover>.cohort-exams{display:block}}
+.cohort-exams .submenu-heading{font-size:12px;color:#83566e;font-weight:800;padding:7px 9px 10px}
+.filters .cohort-exam-choice{width:100%;display:grid;gap:3px;text-align:left;border:0;background:white;border-radius:9px;min-height:54px;padding:10px 12px;color:#532640;font-weight:800}
+.filters .cohort-exam-choice:hover,.filters .cohort-exam-choice:focus-visible,.filters .cohort-exam-choice.is-selected{background:#f8ddec}
+.cohort-exam-choice small{color:#7b5c71;font-weight:500;font-size:12px}
+.cohort-exam-choice.is-selected{outline:1px solid #cd87a9}
+@media(max-width:1150px){.cohort-menu{width:min(345px,calc(100vw - 30px));max-height:65vh;overflow-y:auto}.cohort-forms,.cohort-exams{position:static;left:auto;top:auto;width:100%;margin:2px 0 9px;box-shadow:none;border:1px solid #f1dae5}}
+@media(max-width:620px){.cohort-picker{min-width:0;flex:1 1 100%;width:100%}.cohort-menu{width:100%}}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
-  <label for="cohort-trigger">SPM Cohort &amp; Form</label>
-  <button type="button" id="cohort-trigger" class="cohort-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="cohort-menu">Choose cohort &amp; form <span aria-hidden="true">▾</span></button>
+  <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
+  <button type="button" id="cohort-trigger" class="cohort-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="cohort-menu">Choose cohort, form &amp; exam <span aria-hidden="true">▾</span></button>
   <div id="cohort-menu" class="cohort-menu" hidden></div>
   <select id="cohort" hidden aria-hidden="true" tabindex="-1"></select>
   <select id="form" hidden aria-hidden="true" tabindex="-1"></select>
+  <select id="exam" hidden aria-hidden="true" tabindex="-1"></select>
  </div>
- <label>Exam<select id="exam"></select></label>
  <label>Class at exam<select id="classFilter"></select></label>
  <div class="student-search" id="student-search-wrap">
  <label for="search">Student search</label>
@@ -123,85 +140,111 @@ function trackerWithGrades(row){
 function objects(a){return a.slice(1).filter(r=>r.some(v=>v!=='')).map(r=>Object.fromEntries(a[0].map((h,i)=>[h,r[i]??''])))}
 function select(id,vals,all){const old=$(id).value;$(id).innerHTML=(all?'<option value="">'+all+'</option>':'')+vals.map(x=>'<option>'+esc(x)+'</option>').join('');if(vals.includes(old))$(id).value=old}
 const unique=a=>[...new Set(a.filter(x=>x!==''&&x!==null).map(String))].sort();
-/* Cohort and form are one visible two-level selector; hidden native selects
-   preserve the existing dashboard filters and cross-tab logic. */
-function availableForms(year){
- return unique(D.results.filter(r=>String(r.SPM_Cohort)===String(year)).map(r=>r.Form));
+/* Store year/form/exam metadata once after loading Sheet data. Native selects stay in
+   place (hidden) so all existing charts, student search and cross-tab filtering work. */
+let cohortIndex=[];
+const examOrder=['TOV','AR1','AR2','AR3','SPM'];
+function buildCohortIndex(){
+ const years=new Map();
+ for(const r of D.results){
+  const year=String(r.SPM_Cohort||'').trim(),form=String(r.Form||'').trim(),exam=String(r.Exam||'').trim();
+  if(!year||!form)continue;
+  if(!years.has(year))years.set(year,new Map());
+  const forms=years.get(year);
+  if(!forms.has(form))forms.set(form,{form,marked:0,exams:new Map()});
+  const f=forms.get(form),hasMark=mark(r)!==null;
+  if(hasMark)f.marked++;
+  if(exam){
+   if(!f.exams.has(exam))f.exams.set(exam,{exam,marked:0});
+   if(hasMark)f.exams.get(exam).marked++;
+  }
+ }
+ cohortIndex=[...years].sort(([a],[b])=>Number(b)-Number(a)).map(([year,forms])=>({
+  year,forms:[...forms.values()].sort((a,b)=>a.form.localeCompare(b.form))
+   .map(f=>({...f,exams:[...f.exams.values()].sort((a,b)=>{
+    const x=examOrder.indexOf(a.exam),y=examOrder.indexOf(b.exam);
+    return (x<0?99:x)-(y<0?99:y)||a.exam.localeCompare(b.exam);
+   })}))
+ }));
 }
+function formInfo(year,form){return cohortIndex.find(x=>x.year===String(year))?.forms.find(x=>x.form===String(form));}
+function availableForms(year){return cohortIndex.find(x=>x.year===String(year))?.forms.map(f=>f.form)||[];}
 function bestFormFor(year){
- const forms=availableForms(year);
- const scores=forms.map(f=>({f,count:D.results.filter(r=>String(r.SPM_Cohort)===String(year)&&r.Form===f&&mark(r)!==null).length}));
- scores.sort((a,b)=>b.count-a.count);
- return scores.length?scores[0].f:'';
+ const forms=cohortIndex.find(x=>x.year===String(year))?.forms||[];
+ return forms.slice().sort((a,b)=>b.marked-a.marked)[0]?.form||'';
+}
+function updateCohortSummary(){
+ if(!D)return;
+ const year=$('cohort').value,form=$('form').value,exam=$('exam').value;
+ $('cohort-trigger').innerHTML='<span>'+esc('SPM '+year+' → '+(form||'All forms')+' → '+(exam||'Select exam'))+'</span><span aria-hidden="true">▾</span>';
+ $('cohort-menu').querySelectorAll('.cohort-exam-choice').forEach(el=>{
+  const selected=el.dataset.year===year&&el.dataset.form===form&&el.dataset.exam===exam;
+  el.classList.toggle('is-selected',selected);
+  el.setAttribute('aria-current',selected?'true':'false');
+ });
 }
 function syncCohortMenu(){
  if(!D)return;
- const activeYear=$('cohort').value,activeForm=$('form').value;
- const years=unique(D.results.map(r=>r.SPM_Cohort)).sort((a,b)=>Number(b)-Number(a));
- $('cohort-trigger').innerHTML='<span>'+esc('SPM '+activeYear+' → '+(activeForm||'Select form'))+'</span><span aria-hidden="true">▾</span>';
- $('cohort-menu').innerHTML='<div class="menu-heading">HOVER OVER A YEAR, THEN CHOOSE FORM</div>'+
-  years.map(year=>{
-   const forms=availableForms(year);
-   return '<div class="cohort-year" data-year-row="'+esc(year)+'">'+
-    '<button type="button" class="cohort-year-btn" data-open-year="'+esc(year)+'" aria-haspopup="true" aria-expanded="false">'+
-     '<span>SPM '+esc(year)+'</span><span aria-hidden="true">›</span></button>'+
-    '<div class="cohort-forms" role="group" aria-label="Forms for SPM '+esc(year)+'">'+
-     '<div class="submenu-heading">CHOOSE FORM</div>'+
-     forms.map(form=>{
-      const actual=D.results.filter(r=>String(r.SPM_Cohort)===String(year)&&r.Form===form);
-      const yearList=unique(actual.map(r=>r.Academic_Year));
-      const marked=actual.filter(r=>mark(r)!==null).length;
-      const desc=yearList.join(' / ')+' academic year · '+(marked?marked+' marks entered':'No marks yet');
-      const isSelected=year===activeYear&&form===activeForm;
-      return '<button type="button" class="cohort-choice'+(isSelected?' is-selected':'')+
-        '" data-choose-year="'+esc(year)+'" data-choose-form="'+esc(form)+'" aria-current="'+(isSelected?'true':'false')+'">'+
-        '<span>'+esc(form)+(isSelected?' ✓':'')+'</span><small>'+esc(desc)+'</small></button>';
-     }).join('')+'</div></div>';
-  }).join('');
+ $('cohort-menu').innerHTML='<div class="menu-heading">CHOOSE YEAR → FORM → EXAM</div>'+
+  cohortIndex.map(y=>'<div class="cohort-year">'+
+   '<button type="button" class="cohort-year-btn" data-open-year="'+esc(y.year)+'" aria-expanded="false">'+
+   '<span>SPM '+esc(y.year)+'</span><span aria-hidden="true">›</span></button>'+
+   '<div class="cohort-forms" role="group" aria-label="Forms for SPM '+esc(y.year)+'">'+
+   '<div class="submenu-heading">CHOOSE FORM</div>'+
+   y.forms.map(f=>'<div class="cohort-form-row">'+
+    '<button type="button" class="cohort-form-button" data-open-form="'+esc(f.form)+'" aria-expanded="false">'+
+    '<span>'+esc(f.form)+'</span><span aria-hidden="true">›</span></button>'+
+    '<div class="cohort-exams" role="group" aria-label="Exams for '+esc(f.form)+'">'+
+    '<div class="submenu-heading">CHOOSE EXAM</div>'+
+    (f.exams.length?f.exams.map(ex=>'<button type="button" class="cohort-exam-choice" data-year="'+esc(y.year)+
+     '" data-form="'+esc(f.form)+'" data-exam="'+esc(ex.exam)+'" aria-current="false">'+
+     '<span>'+esc(ex.exam)+'</span><small>'+(ex.marked?ex.marked+' marks entered':'No marks yet')+'</small></button>').join(''):
+     '<p class="submenu-heading">No exams available</p>')+
+    '</div></div>').join('')+
+   '</div></div>').join('');
+ updateCohortSummary();
 }
 function closeCohortMenu(){
  $('cohort-menu').hidden=true;
  $('cohort-trigger').setAttribute('aria-expanded','false');
- $('cohort-menu').querySelectorAll('.cohort-year').forEach(x=>x.classList.remove('is-expanded'));
- $('cohort-menu').querySelectorAll('[data-open-year]').forEach(x=>x.setAttribute('aria-expanded','false'));
+ $('cohort-menu').querySelectorAll('.is-expanded').forEach(el=>el.classList.remove('is-expanded'));
+ $('cohort-menu').querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false'));
 }
-function chooseCohortForm(year,form){
- if(!D||!availableForms(year).includes(form))return;
+function chooseCohortExam(year,form,exam){
+ if(!D||!formInfo(year,form)?.exams.some(x=>x.exam===exam))return;
  $('cohort').value=String(year);
- select('form',availableForms(year),false);
- $('form').value=form;
- setExams();
- $('classFilter').value=''; // Reset to all classes when switching cohort/form.
- syncCohortMenu();
- closeCohortMenu();
- render();
- $('cohort-trigger').focus();
+ select('form',availableForms(year),false);$('form').value=form;
+ setExams();$('exam').value=exam;setClasses();
+ $('classFilter').value='';selectedStudentFocus='';
+ closeCohortMenu();render();$('cohort-trigger').focus();
 }
 $('cohort-trigger').addEventListener('click',()=>{
  if(!D)return;
  const opening=$('cohort-menu').hidden;
- if(opening){syncCohortMenu();$('cohort-menu').hidden=false}
+ if(opening)$('cohort-menu').hidden=false;
  else closeCohortMenu();
  $('cohort-trigger').setAttribute('aria-expanded',String(opening));
 });
 $('cohort-menu').addEventListener('click',ev=>{
- const choice=ev.target.closest('[data-choose-year]');
- if(choice){chooseCohortForm(choice.dataset.chooseYear,choice.dataset.chooseForm);return;}
+ const exam=ev.target.closest('.cohort-exam-choice');
+ if(exam){chooseCohortExam(exam.dataset.year,exam.dataset.form,exam.dataset.exam);return;}
+ const form=ev.target.closest('[data-open-form]');
+ if(form){
+  const row=form.closest('.cohort-form-row'),open=row.classList.contains('is-expanded');
+  row.parentElement.querySelectorAll('.cohort-form-row').forEach(el=>{el.classList.remove('is-expanded');el.querySelector('[data-open-form]').setAttribute('aria-expanded','false');});
+  if(!open){row.classList.add('is-expanded');form.setAttribute('aria-expanded','true');}
+  return;
+ }
  const year=ev.target.closest('[data-open-year]');
  if(year){
-  const parent=year.closest('.cohort-year');
-  const wasOpen=parent.classList.contains('is-expanded');
-  $('cohort-menu').querySelectorAll('.cohort-year').forEach(x=>x.classList.remove('is-expanded'));
-  $('cohort-menu').querySelectorAll('[data-open-year]').forEach(x=>x.setAttribute('aria-expanded','false'));
-  if(!wasOpen){parent.classList.add('is-expanded');year.setAttribute('aria-expanded','true');}
+  const row=year.closest('.cohort-year'),open=row.classList.contains('is-expanded');
+  $('cohort-menu').querySelectorAll('.is-expanded').forEach(el=>el.classList.remove('is-expanded'));
+  $('cohort-menu').querySelectorAll('[aria-expanded="true"]').forEach(el=>el.setAttribute('aria-expanded','false'));
+  if(!open){row.classList.add('is-expanded');year.setAttribute('aria-expanded','true');}
  }
 });
-document.addEventListener('click',ev=>{
- if(!$('cohort-picker').contains(ev.target))closeCohortMenu();
-});
-document.addEventListener('keydown',ev=>{
- if(ev.key==='Escape'&&!$('cohort-menu').hidden){closeCohortMenu();$('cohort-trigger').focus();}
-});
+document.addEventListener('click',ev=>{if(!$('cohort-picker').contains(ev.target))closeCohortMenu();});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&!$('cohort-menu').hidden){closeCohortMenu();$('cohort-trigger').focus();}});
 
 const SHEET_ID='1HHL92HTiXhSvXAE-1g3mRIVUdyM16agTJw1lPf7pEf0';
 const BACKEND_STORAGE_KEY='sti_dashboard_apps_script_url';
@@ -309,6 +352,7 @@ async function load(){
    seen.add(key);
   }
   D=data;
+  buildCohortIndex();
   const previousYear=$('cohort').value,previousForm=$('form').value;
   select('cohort',unique(D.results.map(r=>r.SPM_Cohort)).sort((a,b)=>Number(b)-Number(a)),false);
   const currentYear=$('cohort').value;
@@ -329,21 +373,13 @@ async function load(){
  }finally{$('refresh').disabled=false}
 }
 function setExams(){
- const cohort=$('cohort').value,form=$('form').value;
- const candidates=D.results.filter(r=>String(r.SPM_Cohort)===cohort&&r.Form===form);
- const available=unique(candidates.map(r=>r.Exam));
- const preferred=['TOV','AR1','AR2','AR3','SPM'];
- const ordered=preferred.filter(x=>available.includes(x)).concat(available.filter(x=>!preferred.includes(x)));
- select('exam',ordered,false);
- // Default to an examination with real entered marks.
- // For SPM 2026 this is AR3; for SPM 2027 this is currently TOV.
- const totals=ordered.map(ex=>({exam:ex,count:candidates.filter(r=>r.Exam===ex&&mark(r)!==null).length}));
- const selected=totals.find(x=>x.exam===$('exam').value);
- if((!selected||selected.count===0)&&totals.some(x=>x.count>0)){
-  const best=totals.slice().sort((a,b)=>b.count-a.count)[0];
-  $('exam').value=best.exam;
+ const meta=formInfo($('cohort').value,$('form').value),available=meta?.exams||[];
+ select('exam',available.map(x=>x.exam),false);
+ const current=available.find(x=>x.exam===$('exam').value);
+ if((!current||!current.marked)&&available.some(x=>x.marked)){
+  $('exam').value=available.slice().sort((a,b)=>b.marked-a.marked)[0].exam;
  }
- setClasses()
+ setClasses();
 }
 function setClasses(){
  const origin=(tab==='Item analysis'&&D.items.some(r=>String(r.SPM_Cohort)===$('cohort').value&&r.Exam===$('exam').value))?D.items:D.results;
@@ -423,7 +459,7 @@ function goToStudentClass(index){
  $('classFilter').value=[...$('classFilter').options].some(o=>o.value===cls)?cls:'';
  selectedStudentFocus=String(r.Student_Name).trim();
  $('search').value='';
- syncCohortMenu();closeStudentLookup();
+ updateCohortSummary();closeStudentLookup();
  render();
  requestAnimationFrame(()=>{
   const studentRow=document.querySelector('tr.student-focused');
@@ -511,7 +547,7 @@ function showAllItemData(){
  $('form').value='';$('search').value='';
  setClasses();$('classFilter').value='';render();
 }
-function render(){if(!D)return;$('nav').innerHTML=['Overview','Class performance','Headcount & targets','Interventions','Item analysis'].map(t=>'<button class="'+(t===tab?'active':'')+'" onclick="selectDashboardPage(this.textContent)">'+t+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc($('exam').value)+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
+function render(){if(!D)return;updateCohortSummary();$('nav').innerHTML=['Overview','Class performance','Headcount & targets','Interventions','Item analysis'].map(t=>'<button class="'+(t===tab?'active':'')+'" onclick="selectDashboardPage(this.textContent)">'+t+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc($('exam').value)+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
 if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Class pass rate</h2><p class="muted">Percentage of candidates with valid marks</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Pass & fail distribution</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>pass rate</small></span></div><p class="legend">● Pass '+s.pass+' &nbsp; / &nbsp; Fail '+s.fail+' · Sat '+s.sat+'</p>':'<p class="muted">No valid marks yet.</p>')+'</section></div>';html=charts+html;if(tab==='Class performance'){
  const className=$('classFilter').value;
  html+='<section><h2>Class details</h2>'+table(['Class','Sat','Pass','Fail','Average'],
