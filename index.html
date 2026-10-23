@@ -12,6 +12,17 @@ body{background:#fff5f8;color:#4c2940}header,nav{background:#54263f}header small
 .connect-panel button{padding:10px;font-size:12px;font-weight:750;background:#f9e2ee;border:1px solid #e5bdd0}
 .connect-panel code{font:11px monospace;word-break:break-all}
 @media print{.connect-panel{display:none!important}}
+
+/* Grade distribution follows Class Details; student results now live here too. */
+.grade-distribution{display:grid;gap:11px;margin-top:20px}
+.grade-line{display:grid;grid-template-columns:58px minmax(110px,1fr) 95px;gap:13px;align-items:center;font-size:13px}
+.grade-line strong{font-size:13px}
+.grade-line .track{height:17px;background:#f9e5ef;border-radius:9px}
+.grade-line .track i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#c34c88,#ef9fc1)}
+.grade-line.is-absent .track i{background:linear-gradient(90deg,#8e8999,#b3acba)}
+.grade-line .grade-total{text-align:right;color:#6d4b61;font-variant-numeric:tabular-nums}
+.grade-subtitle{margin-top:12px}
+@media(max-width:500px){.grade-line{grid-template-columns:44px minmax(70px,1fr) 75px;gap:8px}}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>English Performance Dashboard</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters"><label>SPM Cohort<select id="cohort"></select></label><label>Exam<select id="exam"></select></label><label>Form<select id="form"><option value="">All forms</option></select></label><label>Class at exam<select id="classFilter"></select></label><label>Student search<input id="search" placeholder="Type a student’s name"></label><label>Data<button id="refresh" onclick="load()">Refresh from Sheet</button></label><label>Report<button onclick="window.print()">Print</button></label></div><p id="status" role="status">Connecting to your Google Sheet…</p>
 <section id="connection-setup" class="connect-panel" hidden>
  <h2>🔗 One-time Google Sheets connection</h2>
@@ -192,6 +203,44 @@ function filtered(rows,exam=true){return rows.filter(r=>String(r.SPM_Cohort)===$
 function stats(rows){let marks=rows.map(mark).filter(x=>x!==null),pass=marks.filter(x=>x>=D.passMark).length;return {count:rows.length,sat:marks.length,pass,fail:marks.length-pass,missing:rows.length-marks.length,avg:marks.length?(marks.reduce((a,b)=>a+b,0)/marks.length).toFixed(1):'—',rate:marks.length?(pass/marks.length*100).toFixed(1):null}}
 function table(head,rows){return rows.length?'<div class="scroll"><table><thead><tr>'+head.map(x=>'<th>'+esc(x)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+esc(c===''?'—':c)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>':'<p class="muted">No data entered for these filters yet.</p>'}
 function card(label,value){return '<div class="card"><span class="muted">'+label+'</span><b>'+value+'</b></div>'}
+const ALL_GRADES=['A+','A','A-','B+','B','C+','C','D','E','G','TH'];
+function gradeDistribution(rows){
+ const counts=Object.fromEntries(ALL_GRADES.map(g=>[g,0]));
+ let missing=0;
+ rows.forEach(row=>{
+  const grade=gradeFor(row.Total_Mark_100,row.Attendance_Optional);
+  if(grade&&Object.prototype.hasOwnProperty.call(counts,grade))counts[grade]++;
+  else missing++;
+ });
+ const total=rows.length-missing;
+ const high=Math.max(1,...ALL_GRADES.map(g=>counts[g]));
+ let output='<div class="grade-distribution" role="img" aria-label="'+
+  esc('Grade distribution: '+ALL_GRADES.map(g=>g+' '+counts[g]).join(', '))+'">';
+ ALL_GRADES.forEach(g=>{
+  const count=counts[g];
+  const percent=total?Math.round(count/total*100):0;
+  const width=(100*count/high).toFixed(1);
+  output+='<div class="grade-line'+(g==='TH'?' is-absent':'')+'"><strong>'+esc(g)+'</strong>'+
+   '<div class="track"><i style="width:'+width+'%"></i></div>'+
+   '<span class="grade-total">'+count+' · '+percent+'%</span></div>';
+ });
+ output+='</div><p class="muted grade-subtitle">Based on '+total+
+  ' graded/absent records; '+missing+' not yet marked. TH means absent. Bars are scaled to the highest grade count.</p>';
+ return output;
+}
+function classStudentResults(rows){
+ const sorted=rows.slice().sort((a,b)=>
+  String(a.Class_At_Exam||'').localeCompare(String(b.Class_At_Exam||''))||
+  String(a.Student_Name||'').localeCompare(String(b.Student_Name||'')));
+ return table(['No.','Student','Year','Form','Class','Exam','Mark /100','Grade','Result'],
+  sorted.map((r,i)=>{
+   const g=gradeFor(r.Total_Mark_100,r.Attendance_Optional);
+   const m=mark(r);
+   return [i+1,r.Student_Name,r.Academic_Year,r.Form,r.Class_At_Exam,r.Exam,
+    g==='TH'?'TH':m??'—',g||'—',
+    g==='TH'?'Absent':m===null?'Not entered':m>=D.passMark?'Pass':'Fail'];
+  }));
+}
 function selectDashboardPage(page){
  tab=page;
  if(page==='Item analysis'&&D){
@@ -211,9 +260,20 @@ function showAllItemData(){
  $('form').value='';$('search').value='';
  setClasses();$('classFilter').value='';render();
 }
-function render(){if(!D)return;$('nav').innerHTML=['Overview','Class performance','Students','Headcount & targets','Interventions','Item analysis'].map(t=>'<button class="'+(t===tab?'active':'')+'" onclick="selectDashboardPage(this.textContent)">'+t+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc($('exam').value)+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
-if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Class pass rate</h2><p class="muted">Percentage of candidates with valid marks</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Pass & fail distribution</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>pass rate</small></span></div><p class="legend">● Pass '+s.pass+' &nbsp; / &nbsp; Fail '+s.fail+' · Sat '+s.sat+'</p>':'<p class="muted">No valid marks yet.</p>')+'</section></div>';html=charts+html;if(tab==='Class performance')html+='<section><h2>Class details</h2>'+table(['Class','Sat','Pass','Fail','Average'],classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return[c,a.sat,a.pass,a.fail,a.avg]}))+'</section>';}
-if(tab==='Students')html='<section><h2>Student results</h2>'+table(['Student','Year','Form','Class at exam','Exam','Mark /100','Grade (auto)','Result'],rows.map(r=>[r.Student_Name,r.Academic_Year,r.Form,r.Class_At_Exam,r.Exam,mark(r)??'—',gradeFor(r.Total_Mark_100,r.Attendance_Optional),mark(r)===null?'Missing / absent':mark(r)>=D.passMark?'Pass':'Fail']))+'</section>';
+function render(){if(!D)return;$('nav').innerHTML=['Overview','Class performance','Headcount & targets','Interventions','Item analysis'].map(t=>'<button class="'+(t===tab?'active':'')+'" onclick="selectDashboardPage(this.textContent)">'+t+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc($('exam').value)+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
+if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Class pass rate</h2><p class="muted">Percentage of candidates with valid marks</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Pass & fail distribution</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>pass rate</small></span></div><p class="legend">● Pass '+s.pass+' &nbsp; / &nbsp; Fail '+s.fail+' · Sat '+s.sat+'</p>':'<p class="muted">No valid marks yet.</p>')+'</section></div>';html=charts+html;if(tab==='Class performance'){
+ const className=$('classFilter').value;
+ html+='<section><h2>Class details</h2>'+table(['Class','Sat','Pass','Fail','Average'],
+  classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));
+   return[c,a.sat,a.pass,a.fail,a.avg]}))+'</section>';
+ html+='<section><h2>Grade distribution · '+esc(className||'All classes')+'</h2>'+
+  '<p class="muted">Grade counts for the selected SPM cohort, examination, form and class. Every grade is shown, including zero counts.</p>'+
+  gradeDistribution(rows)+'</section>';
+ html+='<section><h2>Students · '+esc(className||'All classes')+'</h2>'+
+  '<p class="muted">Student names and results for the selected class. Use the student-search filter to find someone. TH is absent; unentered marks are not counted as failures.</p>'+
+  classStudentResults(rows)+'</section>';
+}}
+
 if(tab==='Headcount & targets'){let tr=D.tracker.slice(3).filter(r=>r[2]&&String(r[0])===$('cohort').value&&(!$('classFilter').value||r[1]===$('classFilter').value)&&String(r[2]).toLowerCase().includes($('search').value.trim().toLowerCase()));html='<section><h2>Individual headcount</h2><p class="muted">M = Mark · G = Grade · TH = Absent</p>'+table(['Cohort','Class (2026)','Student','TOV M','TOV G','OTR1 M','OTR1 G','AR1 M','AR1 G','OTR2 M','OTR2 G','AR2 M','AR2 G','OTR3 M','OTR3 G','AR3 M','AR3 G','ETR M','ETR G'],tr.map(trackerWithGrades))+'</section><section><h2>Class targets · '+esc($('exam').value)+'</h2>'+table(['Year','Class','Target passes','Target pass %','Notes'],filtered(D.targets).map(r=>[r.Academic_Year,r.Class,r.Target_Passes,r['Target_Pass_%'],r.Notes]))+'</section>'}
 if(tab==='Interventions')html='<section><h2>Intervention records</h2>'+table(['Student','Class','Exam','Weak paper','Weak part','Intervention','Start','Follow-up','Status','Notes'],filtered(D.interventions).map(r=>[r.Student_Name,r.Class,r.Exam,r.Weak_Paper,r.Weak_Part,r.Intervention,r.Start_Date,r.Follow_Up_Date,r.Status,r.Notes]))+'</section>';
 if(tab==='Item analysis'){
