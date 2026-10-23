@@ -166,6 +166,14 @@ function syncNewCohortIntake() {
       const key = cohortKey_(cohort, name);
       const entry = {cohort: cohort, academicYear: academicYear, form: form,
         clazz: clazz, name: name, status: status};
+      // Check class conflicts BEFORE planning any new master row.
+      const enrolKey = cohortKey_(academicYear + '/' + form, name);
+      let enrolRecord = enrolMap.get(enrolKey);
+      if (enrolRecord && enrolRecord.clazz && enrolRecord.clazz !== clazz) {
+        statuses[i] = ['Review: different class already registered'];
+        reviewCount++;
+        return;
+      }
       let masterRow = masterMap.get(key);
       let didImport = false;
       if (!masterRow) {
@@ -173,13 +181,6 @@ function syncNewCohortIntake() {
         masterMap.set(key, masterRow);
         newMaster.push([name, cohort, status, '']);
         didImport = true; newlyRegistered++;
-      }
-      const enrolKey = cohortKey_(academicYear + '/' + form, name);
-      let enrolRecord = enrolMap.get(enrolKey);
-      if (enrolRecord && enrolRecord.clazz && enrolRecord.clazz !== clazz) {
-        statuses[i] = ['Review: different class already registered'];
-        reviewCount++;
-        return;
       }
       if (!enrolRecord) {
         enrolRecord = {row: nextEnrolRow + newEnrol.length, clazz: clazz};
@@ -194,6 +195,8 @@ function syncNewCohortIntake() {
         if (resultMap.has(resultKey)) {
           const existingIndex = resultMap.get(resultKey);
           const past = resultValues[existingIndex - 2];
+          const pending = newResults[existingIndex - nextResultRow];
+          if (pending && !pending[3]) pending[3] = classFromNewIntake_(entry, exam);
           const first = exam === 'TOV' || exam === 'AR1';
           const expectedForm = first ? 'Form 4' : 'Form 5';
           const expectedYear = first ? cohort - 1 : cohort;
