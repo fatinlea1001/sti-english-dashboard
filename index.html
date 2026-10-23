@@ -192,7 +192,7 @@ function updateCohortSummary(){
 }
 function syncCohortMenu(){
  if(!D)return;
- $('cohort-menu').innerHTML='<div class="menu-heading">CHOOSE YEAR → FORM → EXAM</div>'+
+ $('cohort-menu').innerHTML='<div class="menu-heading">CHOOSE SPM COHORT</div>'+
   cohortIndex.map(y=>'<div class="cohort-year">'+
    '<button type="button" class="cohort-year-btn" data-open-year="'+esc(y.year)+'" aria-expanded="false">'+
    '<span>SPM '+esc(y.year)+'</span><span aria-hidden="true">›</span></button>'+
