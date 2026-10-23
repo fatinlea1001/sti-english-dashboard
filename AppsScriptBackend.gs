@@ -194,7 +194,8 @@ function syncNewCohortIntake() {
     resultValues.forEach((r, i) => {
       if (r[0] && r[4] && r[5]) resultMap.set(cohortKey_(r[0], r[4]) + '|' + r[5], i + 2);
     });
-    const trackMap = new Set(trackValues.filter(r => r[0] && r[2]).map(r => cohortKey_(r[0], r[2])));
+    const trackMap = new Map();
+    trackValues.forEach((r, i) => { if (r[0] && r[2]) trackMap.set(cohortKey_(r[0], r[2]), i + 4); });
     const summaryMap = new Set(summaryValues.filter(r => r[0] && r[1]).map(r => cohortKey_(r[0], r[1])));
 
     const newMaster = [], newEnrol = [], newResults = [], newTracker = [], newSummary = [];
@@ -275,8 +276,8 @@ function syncNewCohortIntake() {
         newResults.push(vals);
       });
       if (!trackMap.has(key)) {
-        trackMap.add(key);
         const tr = nextTrackerRow + newTracker.length;
+        trackMap.set(key, tr);
         const mr = masterRow, er = enrolRecord.row;
         const ar = exercises.map(ex => resultMarkRef_(resultMap.get(key + '|' + ex)));
         const gradeFormula = (sourceIndex, markColumn) =>
@@ -295,7 +296,7 @@ function syncNewCohortIntake() {
       if (!summaryMap.has(key)) {
         summaryMap.add(key);
         const sr = nextSummaryRow + newSummary.length;
-        const tr = nextTrackerRow + newTracker.length - 1;
+        const tr = trackMap.get(key);
         const mark = ex => resultMarkRef_(resultMap.get(key + '|' + ex))[0];
         newSummary.push([
           cohort, name, mark('TOV'),mark('AR1'),mark('AR2'),mark('AR3'),
