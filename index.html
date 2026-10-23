@@ -89,6 +89,13 @@ body{background:#fff5f8;color:#4c2940}header,nav{background:#54263f}header small
 .cohort-exam-choice.is-selected{outline:1px solid #cd87a9}
 @media(max-width:1150px){.cohort-menu{width:min(345px,calc(100vw - 30px));max-height:65vh;overflow-y:auto}.cohort-forms,.cohort-exams{position:static;left:auto;top:auto;width:100%;margin:2px 0 9px;box-shadow:none;border:1px solid #f1dae5}}
 @media(max-width:620px){.cohort-picker{min-width:0;flex:1 1 100%;width:100%}.cohort-menu{width:100%}}
+
+/* Class selection belongs to the CLASS PERFORMANCE page, not global filters. */
+.class-filter-bar{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;background:#fff;border:1px solid #f0dce5;border-radius:15px;padding:18px 22px;margin-bottom:20px}
+.class-filter-bar label{display:grid;gap:7px;color:#54263f;font-size:14px;font-weight:800;flex:0 1 350px;min-width:220px}
+.class-filter-bar select{width:100%;min-height:52px;background:#fff7fb;border:1px solid #d8a3bc;font-size:16px;font-weight:700;padding:12px 15px}
+.class-filter-bar p{margin:0 0 10px;color:#866779;font-size:13px;flex:1 1 200px}
+@media(max-width:620px){.class-filter-bar{padding:17px}.class-filter-bar label{flex:1 1 100%;min-width:0}.class-filter-bar p{margin:0}}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -457,7 +464,7 @@ function goToStudentClass(index){
  setExams();
  if([...$('exam').options].some(o=>o.value===exam))$('exam').value=exam;
  setClasses();
- $('classFilter').value=''; // Student navigation highlights a row without hiding other classes.
+ $('classFilter').value=[...$('classFilter').options].some(o=>o.value===cls)?cls:''; // Show the student's class in the Class Performance dropdown.
  selectedStudentFocus=String(r.Student_Name).trim();
  $('search').value='';
  updateCohortSummary();closeStudentLookup();
@@ -530,6 +537,9 @@ function classStudentResults(rows){
  return html+'</tbody></table></div>';
 }
 function selectDashboardPage(page){
+ // The class dropdown is specific to Class Performance; never filter other tabs invisibly.
+ $('classFilter').value='';
+ selectedStudentFocus='';
  tab=page;
  if(page==='Item analysis'&&D){
   const c=$('cohort').value;
@@ -548,8 +558,24 @@ function showAllItemData(){
  $('form').value='';$('search').value='';
  setClasses();$('classFilter').value='';render();
 }
+function choosePerformanceClass(value){
+ if(!D||tab!=='Class performance')return;
+ $('classFilter').value=[...$('classFilter').options].some(option=>option.value===value)?value:'';
+ selectedStudentFocus='';
+ render();
+}
+function classPerformanceSelector(){
+ const cohort=$('cohort').value,form=$('form').value,exam=$('exam').value;
+ const classNames=unique(D.results.filter(r=>String(r.SPM_Cohort)===cohort&&(!form||r.Form===form)&&r.Exam===exam).map(r=>r.Class_At_Exam||'Unassigned'));
+ const selected=$('classFilter').value;
+ return '<div class="class-filter-bar"><label for="class-performance-select">Choose class'+
+  '<select id="class-performance-select" onchange="choosePerformanceClass(this.value)">'+
+  '<option value=""'+(!selected?' selected':'')+'>All Classes</option>'+
+  classNames.map(name=>'<option value="'+esc(name)+'"'+(selected===name?' selected':'')+'>'+esc(name)+'</option>').join('')+
+  '</select></label><p>Select an individual class to see its performance and student results, or choose All Classes.</p></div>';
+}
 function render(){if(!D)return;updateCohortSummary();$('nav').innerHTML=['Overview','Class performance','Headcount & targets','Interventions','Item analysis'].map(t=>'<button class="'+(t===tab?'active':'')+'" onclick="selectDashboardPage(this.textContent)">'+t+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc($('exam').value)+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
-if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Class pass rate</h2><p class="muted">Percentage of candidates with valid marks</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Pass & fail distribution</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>pass rate</small></span></div><p class="legend">● Pass '+s.pass+' &nbsp; / &nbsp; Fail '+s.fail+' · Sat '+s.sat+'</p>':'<p class="muted">No valid marks yet.</p>')+'</section></div>';html=charts+html;if(tab==='Class performance'){
+if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Class pass rate</h2><p class="muted">Percentage of candidates with valid marks</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Pass & fail distribution</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>pass rate</small></span></div><p class="legend">● Pass '+s.pass+' &nbsp; / &nbsp; Fail '+s.fail+' · Sat '+s.sat+'</p>':'<p class="muted">No valid marks yet.</p>')+'</section></div>';html=(tab==='Class performance'?classPerformanceSelector():'')+charts+html;if(tab==='Class performance'){
  const className=$('classFilter').value;
  html+='<section><h2>Class details</h2>'+table(['Class','Sat','Pass','Fail','Average'],
   classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));
