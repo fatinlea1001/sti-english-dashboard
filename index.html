@@ -23,7 +23,48 @@ body{background:#fff5f8;color:#4c2940}header,nav{background:#54263f}header small
 .grade-line .grade-total{text-align:right;color:#6d4b61;font-variant-numeric:tabular-nums}
 .grade-subtitle{margin-top:12px}
 @media(max-width:500px){.grade-line{grid-template-columns:44px minmax(70px,1fr) 75px;gap:8px}}
-</style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>English Performance Dashboard</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters"><label>SPM Cohort<select id="cohort"></select></label><label>Exam<select id="exam"></select></label><label>Form<select id="form"><option value="">All forms</option></select></label><label>Class at exam<select id="classFilter"></select></label><label>Student search<input id="search" placeholder="Type a student’s name"></label><label>Data<button id="refresh" onclick="load()">Refresh from Sheet</button></label><label>Report<button onclick="window.print()">Print</button></label></div><p id="status" role="status">Connecting to your Google Sheet…</p>
+
+/* Larger filter controls and two-level cohort → form selector. */
+.filters{padding:22px 24px;gap:17px;align-items:flex-end;overflow:visible;position:relative;z-index:3}
+.filters>label,.cohort-picker{min-width:125px;position:relative}
+.filters label,.cohort-picker>label{font-size:14px;font-weight:800;letter-spacing:.01em;color:#54263f;line-height:1.4}
+.filters select:not([hidden]),.filters input,.filters button:not([hidden]){min-height:52px;padding:13px 15px;font-size:16px;border-radius:11px}
+.filters .student-search{flex:1 1 240px;min-width:225px}
+.filters .student-search input{width:100%;min-width:220px}
+.cohort-picker{display:grid;gap:6px;flex:0 0 240px;min-width:215px}
+.cohort-picker>label{display:block}
+.filters #cohort[hidden],.filters #form[hidden],.cohort-menu[hidden]{display:none!important}
+.filters .cohort-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;white-space:nowrap;width:100%;font-weight:800;background:#fff5fa;border:2px solid #cd87a9;text-align:left;color:#692949;box-shadow:0 2px 6px #4d23400a}
+.cohort-trigger:hover,.cohort-trigger:focus-visible{background:#ffe6f0;border-color:#b54b83}
+.cohort-menu{position:absolute;top:calc(100% + 9px);left:0;width:235px;background:white;border:1px solid #e4bdd1;border-radius:15px;box-shadow:0 16px 40px #4e213a36;padding:9px;z-index:300}
+.cohort-menu .menu-heading{font-size:12px;color:#83566e;font-weight:800;padding:8px 11px 10px}
+.cohort-year{position:relative}
+.filters .cohort-year-btn{width:100%;background:transparent;border:0;min-height:55px;border-radius:9px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;color:#59283f;font-weight:800}
+.filters .cohort-year-btn:hover,.cohort-year:hover>.cohort-year-btn,.cohort-year:focus-within>.cohort-year-btn,.cohort-year.is-expanded>.cohort-year-btn{background:#fae6f0}
+.cohort-forms{display:none;position:absolute;top:-8px;left:calc(100% - 1px);width:235px;background:white;border:1px solid #e4bdd1;border-radius:13px;box-shadow:0 14px 32px #4e213a29;padding:9px;z-index:301}
+.cohort-year:hover>.cohort-forms,.cohort-year:focus-within>.cohort-forms,.cohort-year.is-expanded>.cohort-forms{display:block}
+.cohort-forms .submenu-heading{font-size:12px;color:#83566e;padding:7px 9px 10px;font-weight:800}
+.filters .cohort-choice{width:100%;display:grid;gap:3px;text-align:left;padding:11px 12px;min-height:60px;border:0;border-radius:9px;background:white;font-weight:800;color:#532640}
+.filters .cohort-choice:hover,.filters .cohort-choice:focus-visible,.filters .cohort-choice.is-selected{background:#f8ddec}
+.cohort-choice small{font-size:12px;font-weight:500;color:#7b5c71}
+.cohort-choice.is-selected:before{content:'✓';float:right}
+@media(max-width:900px){.filters{padding:18px;gap:12px}}
+@media(max-width:620px){.cohort-picker{flex:1 1 100%;width:100%}.cohort-menu{left:0;width:min(100%,330px)}.cohort-forms{position:static;left:auto;top:auto;width:100%;margin:2px 0 9px;box-shadow:none;border:1px solid #f1dae5}.filters .student-search{flex:1 1 100%}.filters>label{flex:1 1 140px}}
+@media print{.cohort-menu{display:none!important}}
+</style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>English Performance Dashboard</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
+ <div class="cohort-picker" id="cohort-picker">
+  <label for="cohort-trigger">SPM Cohort &amp; Form</label>
+  <button type="button" id="cohort-trigger" class="cohort-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="cohort-menu">Choose cohort &amp; form <span aria-hidden="true">▾</span></button>
+  <div id="cohort-menu" class="cohort-menu" hidden></div>
+  <select id="cohort" hidden aria-hidden="true" tabindex="-1"></select>
+  <select id="form" hidden aria-hidden="true" tabindex="-1"></select>
+ </div>
+ <label>Exam<select id="exam"></select></label>
+ <label>Class at exam<select id="classFilter"></select></label>
+ <label class="student-search">Student search<input id="search" placeholder="Type a student’s name"></label>
+ <label>Data<button id="refresh" onclick="load()">Refresh from Sheet</button></label>
+ <label>Report<button onclick="window.print()">Print</button></label>
+</div><p id="status" role="status">Connecting to your Google Sheet…</p>
 <section id="connection-setup" class="connect-panel" hidden>
  <h2>🔗 One-time Google Sheets connection</h2>
  <p>Deploy <b>AppsScriptBackend.gs</b> as a Google Apps Script web app (Execute as Me; Who has access: Anyone), then paste the <code>/exec</code> URL.</p>
@@ -58,6 +99,85 @@ function trackerWithGrades(row){
 function objects(a){return a.slice(1).filter(r=>r.some(v=>v!=='')).map(r=>Object.fromEntries(a[0].map((h,i)=>[h,r[i]??''])))}
 function select(id,vals,all){const old=$(id).value;$(id).innerHTML=(all?'<option value="">'+all+'</option>':'')+vals.map(x=>'<option>'+esc(x)+'</option>').join('');if(vals.includes(old))$(id).value=old}
 const unique=a=>[...new Set(a.filter(x=>x!==''&&x!==null).map(String))].sort();
+/* Cohort and form are one visible two-level selector; hidden native selects
+   preserve the existing dashboard filters and cross-tab logic. */
+function availableForms(year){
+ return unique(D.results.filter(r=>String(r.SPM_Cohort)===String(year)).map(r=>r.Form));
+}
+function bestFormFor(year){
+ const forms=availableForms(year);
+ const scores=forms.map(f=>({f,count:D.results.filter(r=>String(r.SPM_Cohort)===String(year)&&r.Form===f&&mark(r)!==null).length}));
+ scores.sort((a,b)=>b.count-a.count);
+ return scores.length?scores[0].f:'';
+}
+function syncCohortMenu(){
+ if(!D)return;
+ const activeYear=$('cohort').value,activeForm=$('form').value;
+ const years=unique(D.results.map(r=>r.SPM_Cohort)).sort((a,b)=>Number(b)-Number(a));
+ $('cohort-trigger').innerHTML='<span>'+esc('SPM '+activeYear+' → '+(activeForm||'Select form'))+'</span><span aria-hidden="true">▾</span>';
+ $('cohort-menu').innerHTML='<div class="menu-heading">HOVER OVER A YEAR, THEN CHOOSE FORM</div>'+
+  years.map(year=>{
+   const forms=availableForms(year);
+   return '<div class="cohort-year" data-year-row="'+esc(year)+'">'+
+    '<button type="button" class="cohort-year-btn" data-open-year="'+esc(year)+'" aria-haspopup="true" aria-expanded="false">'+
+     '<span>SPM '+esc(year)+'</span><span aria-hidden="true">›</span></button>'+
+    '<div class="cohort-forms" role="group" aria-label="Forms for SPM '+esc(year)+'">'+
+     '<div class="submenu-heading">CHOOSE FORM</div>'+
+     forms.map(form=>{
+      const actual=D.results.filter(r=>String(r.SPM_Cohort)===String(year)&&r.Form===form);
+      const yearList=unique(actual.map(r=>r.Academic_Year));
+      const marked=actual.filter(r=>mark(r)!==null).length;
+      const desc=yearList.join(' / ')+' academic year · '+(marked?marked+' marks entered':'No marks yet');
+      const isSelected=year===activeYear&&form===activeForm;
+      return '<button type="button" class="cohort-choice'+(isSelected?' is-selected':'')+
+        '" data-choose-year="'+esc(year)+'" data-choose-form="'+esc(form)+'" aria-current="'+(isSelected?'true':'false')+'">'+
+        '<span>'+esc(form)+(isSelected?' ✓':'')+'</span><small>'+esc(desc)+'</small></button>';
+     }).join('')+'</div></div>';
+  }).join('');
+}
+function closeCohortMenu(){
+ $('cohort-menu').hidden=true;
+ $('cohort-trigger').setAttribute('aria-expanded','false');
+ $('cohort-menu').querySelectorAll('.cohort-year').forEach(x=>x.classList.remove('is-expanded'));
+ $('cohort-menu').querySelectorAll('[data-open-year]').forEach(x=>x.setAttribute('aria-expanded','false'));
+}
+function chooseCohortForm(year,form){
+ if(!D||!availableForms(year).includes(form))return;
+ $('cohort').value=String(year);
+ select('form',availableForms(year),false);
+ $('form').value=form;
+ setExams();
+ syncCohortMenu();
+ closeCohortMenu();
+ render();
+ $('cohort-trigger').focus();
+}
+$('cohort-trigger').addEventListener('click',()=>{
+ if(!D)return;
+ const opening=$('cohort-menu').hidden;
+ if(opening){syncCohortMenu();$('cohort-menu').hidden=false}
+ else closeCohortMenu();
+ $('cohort-trigger').setAttribute('aria-expanded',String(opening));
+});
+$('cohort-menu').addEventListener('click',ev=>{
+ const choice=ev.target.closest('[data-choose-year]');
+ if(choice){chooseCohortForm(choice.dataset.chooseYear,choice.dataset.chooseForm);return;}
+ const year=ev.target.closest('[data-open-year]');
+ if(year){
+  const parent=year.closest('.cohort-year');
+  const wasOpen=parent.classList.contains('is-expanded');
+  $('cohort-menu').querySelectorAll('.cohort-year').forEach(x=>x.classList.remove('is-expanded'));
+  $('cohort-menu').querySelectorAll('[data-open-year]').forEach(x=>x.setAttribute('aria-expanded','false'));
+  if(!wasOpen){parent.classList.add('is-expanded');year.setAttribute('aria-expanded','true');}
+ }
+});
+document.addEventListener('click',ev=>{
+ if(!$('cohort-picker').contains(ev.target))closeCohortMenu();
+});
+document.addEventListener('keydown',ev=>{
+ if(ev.key==='Escape'&&!$('cohort-menu').hidden){closeCohortMenu();$('cohort-trigger').focus();}
+});
+
 const SHEET_ID='1HHL92HTiXhSvXAE-1g3mRIVUdyM16agTJw1lPf7pEf0';
 const BACKEND_STORAGE_KEY='sti_dashboard_apps_script_url';
 function validBackend(raw){
@@ -164,9 +284,14 @@ async function load(){
    seen.add(key);
   }
   D=data;
-  select('cohort',unique(D.results.map(r=>r.SPM_Cohort)),false);
-  select('form',unique(D.results.map(r=>r.Form)),'All forms');
+  const previousYear=$('cohort').value,previousForm=$('form').value;
+  select('cohort',unique(D.results.map(r=>r.SPM_Cohort)).sort((a,b)=>Number(b)-Number(a)),false);
+  const currentYear=$('cohort').value;
+  const forms=availableForms(currentYear);
+  select('form',forms,false);
+  $('form').value=(previousYear===currentYear&&forms.includes(previousForm))?previousForm:bestFormFor(currentYear);
   setExams();
+  syncCohortMenu();
   $('status').className='muted';
   $('status').textContent=(SCRIPT_API_URL?'Apps Script connected · ':'Direct Sheet connected · ')+
    'Retrieved '+new Date(D.updated).toLocaleString()+' · Pass mark '+D.passMark+'/100 · Refresh after Sheet updates.';
@@ -179,8 +304,8 @@ async function load(){
  }finally{$('refresh').disabled=false}
 }
 function setExams(){
- const cohort=$('cohort').value;
- const candidates=D.results.filter(r=>String(r.SPM_Cohort)===cohort);
+ const cohort=$('cohort').value,form=$('form').value;
+ const candidates=D.results.filter(r=>String(r.SPM_Cohort)===cohort&&r.Form===form);
  const available=unique(candidates.map(r=>r.Exam));
  const preferred=['TOV','AR1','AR2','AR3','SPM'];
  const ordered=preferred.filter(x=>available.includes(x)).concat(available.filter(x=>!preferred.includes(x)));
@@ -333,6 +458,6 @@ if(tab==='Item analysis'){
  }
 }
 $('content').innerHTML=html}
-$('cohort').onchange=()=>{setExams();render()};$('exam').onchange=()=>{setClasses();render()};$('classFilter').onchange=render;$('form').onchange=render;$('search').oninput=render;if(urlSettings.get('setup')==='1')showConnectionSetup();
+$('exam').onchange=()=>{setClasses();render()};$('classFilter').onchange=render;$('search').oninput=render;if(urlSettings.get('setup')==='1')showConnectionSetup();
 load();
 </script></body></html>
