@@ -266,8 +266,9 @@ function validBackend(raw){
  }catch{return ''}
 }
 const urlSettings=new URLSearchParams(location.search);
-let SCRIPT_API_URL=validBackend(urlSettings.get('api'));
-try{if(!SCRIPT_API_URL)SCRIPT_API_URL=validBackend(localStorage.getItem(BACKEND_STORAGE_KEY))}catch{}
+// Shared default works on every device without browser-local setup.
+const DEFAULT_SCRIPT_API_URL='https://script.google.com/macros/s/AKfycbzXSFS0ujc1snLdah6S5GRUfXzVKkFJ9c22cmC14G-NyrMBikuTzpo10nbHTPn1gr5UaA/exec';
+let SCRIPT_API_URL=validBackend(urlSettings.get('api'))||DEFAULT_SCRIPT_API_URL;
 function dashboardShareUrl(){
  if(!SCRIPT_API_URL)return '';
  const u=new URL(location.href);u.searchParams.set('api',SCRIPT_API_URL);u.searchParams.delete('setup');u.hash='';
