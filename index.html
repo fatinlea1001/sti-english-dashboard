@@ -164,6 +164,14 @@ th,.paper-col span,.breakdown ul,.class-filter-bar p,.class-filter-bar label{col
 .outcome-cards .card:first-child:before{content:"%";color:#387767}.outcome-cards .card:nth-child(2):before{content:"◎";color:#655298}
 .metric-note{font-size:12px;margin:-6px 0 22px}
 @media(max-width:420px){.cards.outcome-cards{grid-template-columns:1fr}}
+
+#individual-search{width:100%;margin:12px 0;padding:15px;background:#faf8ff;color:#352d4b}
+#individual-matches{display:grid;gap:8px;max-height:330px;overflow:auto}
+.individual-result{text-align:left;display:grid;gap:5px;padding:14px;background:#f6f3ff;border:1px solid #e2dcf4;color:#352d4b}
+.individual-result:hover{background:#e9e1fa}.individual-result span{font-size:12px;color:#554969}
+#individual-report{scroll-margin-top:20px}.student-report-heading h2{font-size:22px}.student-report-heading{background:#f2efff}
+nav button:nth-child(3):before{content:"♙"}nav button:nth-child(4):before{content:"◎"}nav button:nth-child(5):before{content:"♡"}nav button:nth-child(6):before{content:"▤"}
+@media(min-width:801px) and (max-height:800px){nav:after{display:none}}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -644,7 +652,7 @@ function classPerformanceSelector(){
   classNames.map(name=>'<option value="'+esc(name)+'"'+(selected===name?' selected':'')+'>'+esc(name)+'</option>').join('')+
   '</select></label><p>Select an individual class to see its performance and student results, or choose All Classes.</p></div>';
 }
-function render(){if(!D)return;updateCohortSummary();$('nav').innerHTML=['Overview','Class performance','Headcount & targets','Interventions','Item analysis'].map(t=>'<button class="'+(t===tab?'active':'')+'" onclick="selectDashboardPage(this.textContent)">'+t+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc($('exam').value)+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
+function render(){if(!D)return;updateCohortSummary();$('nav').innerHTML=['Overview','Class performance','Individual student','Headcount & targets','Interventions','Item analysis'].map(t=>'<button class="'+(t===tab?'active':'')+'" onclick="selectDashboardPage(this.textContent)">'+t+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc($('exam').value)+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
 if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Class pass rate</h2><p class="muted">Percentage of candidates with valid marks</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Pass & fail distribution</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>pass rate</small></span></div><p class="legend">● Pass '+s.pass+' &nbsp; / &nbsp; Fail '+s.fail+' · Sat '+s.sat+'</p>':'<p class="muted">No valid marks yet.</p>')+'</section></div>';html=(tab==='Class performance'?classPerformanceSelector():'')+charts+html;if(tab==='Class performance'){
  const className=$('classFilter').value;
  html+='<section><h2>Class details</h2>'+table(['Class','Sat','Pass','Fail','Average'],
@@ -744,6 +752,56 @@ render=function(){
  '<div class="overview-bottom"><section><button class="section-link" onclick="selectDashboardPage(\'Class performance\')">View classes →</button><h2>Top Performing Students</h2>'+table(['Name','Mark'],top.map(r=>[r.Student_Name,mark(r)]))+'</section>'+
  '<section><button class="section-link" onclick="selectDashboardPage(\'Item analysis\')">View analysis →</button><h2>Areas to Focus</h2>'+(focus.length?focus.map(p=>'<div class="focus-row"><span>'+esc(p.label)+'</span><b>'+p.value.toFixed(1)+'%</b></div>').join(''):'<p class="muted">Add paper or part scores to see which areas need the most support.</p>')+'<p class="muted">Papers ordered from lowest recorded accuracy.</p></section>'+
  '<section><h2>At a Glance</h2><div class="focus-row"><span>Classes</span><b>'+unique(rows.map(r=>r.Class_At_Exam)).length+'</b></div><div class="focus-row"><span>Passed</span><b>'+s.pass+'</b></div><div class="focus-row"><span>Below pass mark</span><b>'+s.fail+'</b></div><div class="focus-row"><span>Missing / absent</span><b>'+s.missing+'</b></div><p class="muted">Use Refresh from Sheet after updating marks.</p></section></div>';
+};
+
+let individualSelection=null,individualQuery='';
+function studentIdentity(r){return String(r.Student_Name||'').trim().toUpperCase()}
+function sameStudent(r,p){return studentIdentity(r)===p.key&&String(r.SPM_Cohort)===p.cohort}
+function individualStudents(){
+ const people=new Map();
+ D.results.forEach(r=>{if(!studentIdentity(r))return;const cohort=String(r.SPM_Cohort),key=studentIdentity(r),id=JSON.stringify([cohort,key]);if(!people.has(id))people.set(id,{key,cohort,name:String(r.Student_Name).trim(),classes:new Set()});if(r.Class_At_Exam)people.get(id).classes.add(r.Class_At_Exam)});
+ return [...people.values()].sort((a,b)=>a.name.localeCompare(b.name)||b.cohort.localeCompare(a.cohort));
+}
+let individualMatches=[];
+function searchIndividual(value){
+ individualQuery=value;
+ const q=value.trim().toLowerCase();
+ individualMatches=q.length>=2?individualStudents().filter(p=>p.name.toLowerCase().includes(q)).slice(0,30):[];
+ $('individual-matches').innerHTML=q.length<2?'<p class="muted">Type at least two letters to find a student across all cohorts.</p>':individualMatches.length?individualMatches.map((p,i)=>'<button class="individual-result" onclick="openIndividual('+i+')"><strong>'+esc(p.name)+'</strong><span>SPM '+esc(p.cohort)+' · '+esc([...p.classes].join(', ')||'Class not recorded')+'</span></button>').join(''):'<p class="muted">No matching student found.</p>';
+}
+function openIndividual(index){individualSelection=individualMatches[index];renderIndividualReport();$('individual-report').scrollIntoView({behavior:'smooth',block:'start'})}
+function renderIndividualReport(){
+ const p=individualSelection,el=$('individual-report');if(!p){el.innerHTML='';return}
+ const results=D.results.filter(r=>sameStudent(r,p)).slice().sort((a,b)=>Number(a.Academic_Year)-Number(b.Academic_Year)||String(a.Form).localeCompare(String(b.Form))||examOrder.indexOf(a.Exam)-examOrder.indexOf(b.Exam));
+ const scored=results.filter(r=>mark(r)!==null),first=scored[0],last=scored[scored.length-1],change=first&&last&&first!==last?mark(last)-mark(first):null;
+ const items=D.items.filter(r=>sameStudent(r,p));
+ const interventions=D.interventions.filter(r=>sameStudent(r,p));
+ const tracker=D.tracker.slice(3).filter(r=>String(r[0])===p.cohort&&String(r[2]||'').trim().toUpperCase()===p.key);
+ let html='<section class="student-report-heading"><h2>'+esc(p.name)+'</h2><p class="muted">SPM cohort '+esc(p.cohort)+' · Classes recorded: '+esc([...p.classes].join(', ')||'—')+'</p><p class="muted">Full Form 4–5 history for this student. The cohort, form and exam filters above do not restrict this report.</p></section>';
+ html+='<div class="cards student-summary">'+card('Exams with marks',scored.length)+card('Latest recorded mark',last?mark(last)+'%':'—')+card('Latest grade',last?gradeFor(mark(last)):'—')+card('Change from first mark',change===null?'—':(change>0?'+':'')+change+' points')+'</div>';
+ html+='<section><h2>Form 4–5 Examination History</h2><p class="muted">Blank marks mean not entered; TH means absent. Changes compare the first and latest available examinations.</p>'+table(['Year','Form','Class at exam','Exam','Mark /100','Grade','Result','Notes'],results.map(r=>{const g=gradeFor(r.Total_Mark_100,r.Attendance_Optional),m=mark(r);return [r.Academic_Year,r.Form,r.Class_At_Exam,r.Exam,g==='TH'?'TH':m===null?'Not entered':m,g||'—',g==='TH'?'Absent':m===null?'Not entered':m>=D.passMark?'Pass':'Below pass mark',r.Notes]}))+'</section>';
+ const validItems=items.filter(r=>num(r.Score)!==null&&num(r.Max_Score)>0&&num(r.Score)>=0&&num(r.Score)<=num(r.Max_Score));
+ const examKeys=unique(validItems.map(r=>String(r.Academic_Year||'')+'|'+String(r.Form||'')+'|'+r.Exam)).sort((a,b)=>{const x=a.split('|'),y=b.split('|');return Number(x[0])-Number(y[0])||x[1].localeCompare(y[1])||examOrder.indexOf(x[2])-examOrder.indexOf(y[2])});
+ const latestKey=examKeys[examKeys.length-1];
+ const recent=validItems.filter(r=>String(r.Academic_Year||'')+'|'+String(r.Form||'')+'|'+r.Exam===latestKey).sort((a,b)=>num(a.Score)/num(a.Max_Score)-num(b.Score)/num(b.Max_Score));
+ html+='<section><h2>Strengths & Areas for Support</h2>';
+ if(recent.length){
+ const low=recent[0],high=recent[recent.length-1];
+ html+='<p>Lowest recorded accuracy: <b>'+esc(low.Paper+' / '+low.Part)+' ('+(100*num(low.Score)/num(low.Max_Score)).toFixed(1)+'%)</b>.</p>';
+ if(recent.length>1)html+='<p>Highest recorded accuracy: <b>'+esc(high.Paper+' / '+high.Part)+' ('+(100*num(high.Score)/num(high.Max_Score)).toFixed(1)+'%)</b>.</p>';
+ html+='<p class="muted">Comparison uses the latest available item-analysis examination: '+esc(latestKey.split('|').filter(Boolean).join(' · '))+'. These are relative strengths and areas to review based on recorded scores.</p>';
+ }else html+='<p class="muted">No paper or part scores are recorded for this student yet. Overall marks alone cannot identify specific skill weaknesses.</p>';
+ html+=table(['Year','Form','Exam','Paper','Part','Score','Maximum','Accuracy','Recorded weakness / notes'],items.map(r=>[r.Academic_Year,r.Form,r.Exam,r.Paper,r.Part,r.Score,r.Max_Score,num(r.Score)!==null&&num(r.Max_Score)>0?(100*num(r.Score)/num(r.Max_Score)).toFixed(1)+'%':'—',r.Weakness_Notes]))+'</section>';
+ html+='<section><h2>Headcount & Targets</h2>'+table(['Cohort','Class','Student','TOV M','TOV G','OTR1 M','OTR1 G','AR1 M','AR1 G','OTR2 M','OTR2 G','AR2 M','AR2 G','OTR3 M','OTR3 G','AR3 M','AR3 G','ETR M','ETR G'],tracker.map(trackerWithGrades))+'</section>';
+ html+='<section><h2>Interventions & Follow-up</h2>'+table(['Exam','Class','Weak paper','Weak part','Intervention','Start','Follow-up','Status','Notes'],interventions.map(r=>[r.Exam,r.Class,r.Weak_Paper,r.Weak_Part,r.Intervention,r.Start_Date,r.Follow_Up_Date,r.Status,r.Notes]))+'</section>';
+ el.innerHTML=html;
+}
+const renderBeforeIndividual=render;
+render=function(){
+ renderBeforeIndividual();
+ if(tab!=='Individual student'||!D)return;
+ $('content').innerHTML='<div class="welcome"><h2>Individual Student Report</h2><p>Search for a student to view their journey from Form 4 to Form 5.</p></div><section><label for="individual-search">Search student name</label><input id="individual-search" type="search" autocomplete="off" placeholder="Type a student’s name…" value="'+esc(individualQuery)+'" oninput="searchIndividual(this.value)"><div id="individual-matches" aria-live="polite"></div></section><div id="individual-report"></div>';
+ searchIndividual(individualQuery);renderIndividualReport();
 };
 
 load();
