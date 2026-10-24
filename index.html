@@ -228,6 +228,7 @@ const unique=a=>[...new Set(a.filter(x=>x!==''&&x!==null).map(String))].sort();
    place (hidden) so all existing charts, student search and cross-tab filtering work. */
 let cohortIndex=[];
 const examOrder=['TOV','AR1','AR2','AR3','SPM'];
+function examDisplayName(exam){return exam==='TOV'?'TOV (PPT – Peperiksaan Pertengahan Tahun)':exam==='AR1'?'AR1 (PAT – Peperiksaan Akhir Tahun)':exam;}
 function buildCohortIndex(){
  const years=new Map();
  for(const r of D.results){
@@ -435,6 +436,16 @@ async function load(){
    const key=JSON.stringify([row.SPM_Cohort,row.Academic_Year,row.Student_Name,row.Exam]);
    if(seen.has(key))throw new Error('Duplicate student/exam records. Check RESULTS_DATA.');
    seen.add(key);
+  }
+  // The SPM cohort graduates in Form 5. PPT/TOV and PAT/AR1 belong to
+  // the preceding Form 4 academic year, regardless of stale Sheet metadata.
+  for(const row of data.results){
+   const exam=String(row.Exam||'').trim().toUpperCase();
+   const cohort=Number(row.SPM_Cohort);
+   if((exam==='TOV'||exam==='AR1')&&Number.isInteger(cohort)&&cohort>2000){
+    row.Academic_Year=String(cohort-1);
+    row.Form='Form 4';
+   }
   }
   D=data;
   buildCohortIndex();
@@ -802,7 +813,7 @@ function renderIndividualReport(){
  let html='<section class="student-report-heading"><h2>'+esc(p.name)+'</h2><p class="muted">SPM cohort '+esc(p.cohort)+' · Classes recorded: '+esc([...p.classes].join(', ')||'—')+'</p><p class="muted">Full Form 4–5 history for this student. The cohort, form and exam filters above do not restrict this report.</p></section>';
  html+='<div class="cards student-summary">'+card('Exams with marks',scored.length)+card('Latest recorded mark',last?mark(last)+'%':'—')+card('Latest grade',last?gradeFor(mark(last)):'—')+card('Change from first mark',change===null?'—':(change>0?'+':'')+change+' points')+'</div>';
  html+=studentProgressGraph(results);
- html+='<section><h2>Form 4–5 Examination History</h2><p class="muted">Blank marks mean not entered; TH means absent. Changes compare the first and latest available examinations.</p>'+table(['Year','Form','Class at exam','Exam','Mark /100','Grade','Result','Notes'],results.map(r=>{const g=gradeFor(r.Total_Mark_100,r.Attendance_Optional),m=mark(r);return [r.Academic_Year,r.Form,r.Class_At_Exam,r.Exam,g==='TH'?'TH':m===null?'Not entered':m,g||'—',g==='TH'?'Absent':m===null?'Not entered':m>=D.passMark?'Pass':'Below pass mark',r.Notes]}))+'</section>';
+ html+='<section><h2>Form 4–5 Examination History</h2><p class="muted">Blank marks mean not entered; TH means absent. Changes compare the first and latest available examinations.</p>'+table(['Year','Form','Class at exam','Exam','Mark /100','Grade','Result','Notes'],results.map(r=>{const g=gradeFor(r.Total_Mark_100,r.Attendance_Optional),m=mark(r);return [r.Academic_Year,r.Form,r.Class_At_Exam,examDisplayName(r.Exam),g==='TH'?'TH':m===null?'Not entered':m,g||'—',g==='TH'?'Absent':m===null?'Not entered':m>=D.passMark?'Pass':'Below pass mark',r.Notes]}))+'</section>';
  const validItems=items.filter(r=>num(r.Score)!==null&&num(r.Max_Score)>0&&num(r.Score)>=0&&num(r.Score)<=num(r.Max_Score));
  const examKeys=unique(validItems.map(r=>String(r.Academic_Year||'')+'|'+String(r.Form||'')+'|'+r.Exam)).sort((a,b)=>{const x=a.split('|'),y=b.split('|');return Number(x[0])-Number(y[0])||x[1].localeCompare(y[1])||examOrder.indexOf(x[2])-examOrder.indexOf(y[2])});
  const latestKey=examKeys[examKeys.length-1];
