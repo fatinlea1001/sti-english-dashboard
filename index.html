@@ -104,7 +104,7 @@ header{margin-left:250px;padding:26px 30px 8px;background:transparent;color:var(
 header small{color:#9991ba;letter-spacing:1.5px}header h1{font-size:23px;letter-spacing:-.5px}header p{display:none}
 main{margin-left:250px;padding:20px 30px;max-width:1700px}
 nav{width:250px;background:linear-gradient(145deg,#f1f0ff,#edf0ff);padding:145px 18px 25px;gap:12px;border-right:1px solid #eeedff}
-nav:before{content:"📖  English";position:absolute;top:40px;left:28px;color:#25234c;font-size:27px;font-weight:800;letter-spacing:-1px}
+nav:before{content:"ENGLISH LANGUAGE";position:absolute;top:40px;left:28px;color:#25234c;font-size:27px;font-weight:800;letter-spacing:-1px}
 nav:after{content:"Better Students\A Brighter Futures ♡";white-space:pre-line;line-height:1.6;position:absolute;bottom:35px;left:22px;right:22px;padding:35px 22px;border:1px solid white;border-radius:20px;color:#9290bd;font-size:18px;background:#ffffff65;pointer-events:none}
 nav button{color:#606287;font-size:13px;padding:17px 14px;letter-spacing:.3px;border-radius:14px}
 nav button:before{display:inline-block;width:28px;font-size:19px;content:"◈";color:#9990d8}
@@ -144,6 +144,26 @@ td,th{border-bottom-color:#f1effa;padding:11px}tbody tr:hover{background:#faf8ff
 @media(max-width:800px){header,main{margin-left:0}header{padding:20px 18px 0}main{padding:16px}nav{position:static;width:100%;padding:0;flex-direction:row;background:none;border:0;gap:8px;overflow:auto}nav:before,nav:after{display:none}nav button{background:#efecfb;white-space:nowrap;font-size:11px;padding:12px}.overview-charts,.overview-bottom{grid-template-columns:1fr}.overview-bottom section:last-child{grid-column:auto}.welcome h2{font-size:23px}.card{padding:18px 14px 18px 56px}.card:before{left:15px}.card b{font-size:27px}.filters{padding:14px}.breakdown{justify-content:center}}
 @media print{nav{display:none}header,main{margin-left:0}.overview-charts,.overview-bottom{display:block}}
 
+
+/* Stronger text contrast, with the existing pastel surfaces preserved. */
+:root{--ink:#20203f;--muted:#55546f}
+body{color:#29283f}header small,header p,#status,.muted,.legend{color:#55546f}
+nav:before{font-size:21px;left:25px;right:18px;line-height:1.35;letter-spacing:0}
+nav:after{color:#565073}nav button{color:#45415e}nav button.active{color:#4e378a}
+h2,.welcome h2,.card b{color:#23213f}
+.filters label,.cohort-picker>label,.student-search label,.card span,.welcome p{color:#514c68}
+input::placeholder,.filters input::placeholder{color:#67617c;opacity:1}
+button,select,input,.filters .cohort-trigger{color:#403752}
+#refresh{color:#23153f}
+th,.paper-col span,.breakdown ul,.class-filter-bar p,.class-filter-bar label{color:#524b67}
+.section-link,.focus-row b,.donut small{color:#59428b}
+.cohort-menu .menu-heading,.cohort-forms .submenu-heading,.cohort-exams .submenu-heading,.cohort-choice small,.cohort-exam-choice small{color:#554969}
+.student-search-results .lookup-title,.student-search-results .lookup-info span,.student-search-results .lookup-note,.student-search-results .lookup-empty{color:#554969}
+.cards.outcome-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+.outcome-cards .card:first-child{background:#ecfaf6}.outcome-cards .card:nth-child(2){background:#f2efff}
+.outcome-cards .card:first-child:before{content:"%";color:#387767}.outcome-cards .card:nth-child(2):before{content:"◎";color:#655298}
+.metric-note{font-size:12px;margin:-6px 0 22px}
+@media(max-width:420px){.cards.outcome-cards{grid-template-columns:1fr}}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -706,6 +726,8 @@ render=function(){
  const rows=filtered(D.results),s=stats(rows),valid=rows.filter(r=>mark(r)!==null);
  const scores=valid.map(mark),highest=scores.length?Math.max(...scores):null;
  const lowest=scores.length?Math.min(...scores):null;
+ const gradePoints={'A+':0,'A':1,'A-':2,'B+':3,'B':4,'C+':5,'C':6,'D':7,'E':8,'G':9};
+ const gpmp=scores.length?(scores.reduce((sum,m)=>sum+gradePoints[gradeFor(m)],0)/scores.length).toFixed(2):'—';
  const bands=[{label:'Excellent (80–100)',min:80,color:'#c3eee2'},{label:'Good (60–79)',min:60,color:'#cbe4ff'},{label:'Average (40–59)',min:40,color:'#ffe7c8'},{label:'Below pass mark (0–39)',min:0,color:'#ffd4e4'}];
  bands.forEach((b,i)=>b.count=scores.filter(x=>x>=b.min&&(i===0||x<bands[i-1].min)).length);
  let cursor=0;const stops=bands.map(b=>{const start=cursor;cursor+=scores.length?b.count/scores.length*100:0;return b.color+' '+start+'% '+cursor+'%'}).join(',');
@@ -716,6 +738,7 @@ render=function(){
  const focus=papers.slice().sort((a,b)=>a.value-b.value).slice(0,3);
  $('content').innerHTML='<div class="welcome"><p>Your teaching dashboard</p><h2>Here’s your '+esc($('form').value||'cohort')+' English overview <span>♡</span></h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Track progress, identify strengths and plan your next steps.</p></div>'+
  '<div class="cards">'+card('Total students',rows.length)+card('Average mark',s.avg==='—'?'—':s.avg+'%')+card('Highest score',highest===null?'—':highest+'%')+card('Lowest score',lowest===null?'—':lowest+'%')+'</div>'+
+ '<div class="cards outcome-cards">'+card('PERATUS LULUS',s.rate===null?'—':s.rate+'%')+card('GPMP',gpmp)+'</div><p class="muted metric-note">Peratus lulus: lulus ÷ calon hadir. GPMP: purata nilai gred (A+ = 0 hingga G = 9); lebih rendah lebih baik. TH dan markah kosong dikecualikan.</p>'+
  '<div class="overview-charts"><section><h2>Average Score by Paper</h2><p class="muted">'+(papers.length?'Based on recorded item scores; blanks are excluded.':'Paper scores have not been entered for this selection. Showing the overall mark.')+'</p><div class="paper-bars">'+bars.map(p=>'<div class="paper-col" style="--height:'+Math.max(1,p.value)+'%"><b>'+p.value.toFixed(1)+'%</b><span>'+esc(p.label)+'</span></div>').join('')+'</div></section>'+
  '<section><h2>Performance Breakdown</h2><div class="breakdown"><div class="donut" style="background:'+(scores.length?'conic-gradient('+stops+')':'#efedf8')+'"><span>'+esc(s.avg)+(scores.length?'%':'')+'<small>Average</small></span></div><ul>'+bands.map(b=>'<li><i class="dot" style="background:'+b.color+'"></i>'+b.label+'<b>'+b.count+'</b></li>').join('')+'</ul></div><p class="muted">'+s.sat+' valid marks · '+s.missing+' missing / absent · '+(s.rate===null?'—':s.rate+'%')+' pass rate</p></section></div>'+
  '<div class="overview-bottom"><section><button class="section-link" onclick="selectDashboardPage(\'Class performance\')">View classes →</button><h2>Top Performing Students</h2>'+table(['Name','Mark'],top.map(r=>[r.Student_Name,mark(r)]))+'</section>'+
