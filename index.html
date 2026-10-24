@@ -96,6 +96,54 @@ body{background:#fff5f8;color:#4c2940}header,nav{background:#54263f}header small
 .class-filter-bar select{width:100%;min-height:52px;background:#fff7fb;border:1px solid #d8a3bc;font-size:16px;font-weight:700;padding:12px 15px}
 .class-filter-bar p{margin:0 0 10px;color:#866779;font-size:13px;flex:1 1 200px}
 @media(max-width:620px){.class-filter-bar{padding:17px}.class-filter-bar label{flex:1 1 100%;min-width:0}.class-filter-bar p{margin:0}}
+
+/* Pastel dashboard inspired by the supplied reference. */
+:root{--ink:#22234f;--muted:#8185ab;--line:#e9e9fb;--purple:#9a88ee}
+body{background:#fafaff;color:var(--ink);font-family:Inter,"Segoe UI",system-ui,sans-serif}
+header{margin-left:250px;padding:26px 30px 8px;background:transparent;color:var(--ink)}
+header small{color:#9991ba;letter-spacing:1.5px}header h1{font-size:23px;letter-spacing:-.5px}header p{display:none}
+main{margin-left:250px;padding:20px 30px;max-width:1700px}
+nav{width:250px;background:linear-gradient(145deg,#f1f0ff,#edf0ff);padding:145px 18px 25px;gap:12px;border-right:1px solid #eeedff}
+nav:before{content:"📖  English";position:absolute;top:40px;left:28px;color:#25234c;font-size:27px;font-weight:800;letter-spacing:-1px}
+nav:after{content:"Better Students\A Brighter Futures ♡";white-space:pre-line;line-height:1.6;position:absolute;bottom:35px;left:22px;right:22px;padding:35px 22px;border:1px solid white;border-radius:20px;color:#9290bd;font-size:18px;background:#ffffff65;pointer-events:none}
+nav button{color:#606287;font-size:13px;padding:17px 14px;letter-spacing:.3px;border-radius:14px}
+nav button:before{display:inline-block;width:28px;font-size:19px;content:"◈";color:#9990d8}
+nav button:nth-child(2):before{content:"▥"}nav button:nth-child(3):before{content:"◎"}nav button:nth-child(4):before{content:"♡"}nav button:nth-child(5):before{content:"▤"}
+nav button.active{background:#e3dfff;color:#7560cf;box-shadow:none}nav button:hover{background:#e8e4ff}
+.filters{border:1px solid var(--line);box-shadow:0 5px 20px #9990dd06;background:#ffffffb3;padding:18px;gap:16px;border-radius:18px}
+.filters label,.cohort-picker>label,.student-search label{color:#77789d;font-size:12px}
+button,select,input{border-color:#e3e2f8;color:#4c4b78;background:white}
+.filters .cohort-trigger{background:#fbfaff;border:1px solid #dedaf6;color:#4f4777;box-shadow:none;font-size:14px}
+.filters input{font-size:14px;background:#fff;border-color:#e6e3fb}.filters input::placeholder{color:#aaa4c5}
+#refresh{background:#9a88ed;border:0;color:white;font-weight:600;font-size:14px;box-shadow:0 4px 12px #a393e526}
+#refresh:hover{background:#8774d9}#refresh:disabled{opacity:.65}
+.cohort-menu,.cohort-forms,.cohort-exams{border-color:#e3ddfa;box-shadow:0 12px 35px #5b538a20}
+.filters .cohort-year-btn,.filters .cohort-form-button,.filters .cohort-exam-choice{color:#565076}
+.filters .cohort-year-btn:hover,.filters .cohort-form-button:hover,.filters .cohort-exam-choice:hover,.filters .cohort-exam-choice.is-selected{background:#eeeaff}
+#status,.muted,.legend{color:var(--muted)}#status{font-size:12px;margin:0 0 15px}
+section,.card{border:1px solid var(--line);border-radius:19px;box-shadow:0 5px 20px #aaa0e307;background:white;padding:22px}
+h2{color:var(--ink);font-size:16px;margin:0 0 15px}th{background:#f5f4ff;color:#7c7ca2;font-weight:500}
+td,th{border-bottom-color:#f1effa;padding:11px}tbody tr:hover{background:#faf8ff}
+.cards{gap:16px}.card{border:0;background:#eff5ff;position:relative;padding:22px 22px 22px 72px;min-height:118px}
+.card:nth-child(2){background:#f2efff}.card:nth-child(3){background:#ecfaf6}.card:nth-child(4){background:#fff0f6}
+.card:before{content:"♙";position:absolute;left:20px;top:28px;font-size:28px;color:#85b9f3}
+.card:nth-child(2):before{content:"▥";color:#ad94ec}.card:nth-child(3):before{content:"☆";color:#72c7b0}.card:nth-child(4):before{content:"▤";color:#ec8eb7}
+.card span{font-size:13px;color:#67658e}.card b{font-size:32px;color:#26224f;margin-top:9px}
+.welcome{margin:15px 0 24px}.welcome p{color:#8a89ad;margin:8px 0;font-size:15px}.welcome h2{font-size:27px;letter-spacing:-.6px;margin:9px 0}.welcome h2 span{color:#ac95f4}
+.overview-charts{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}.overview-bottom{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:18px}
+.paper-bars{height:245px;display:flex;align-items:flex-end;gap:20px;padding:28px 12px 48px;border-bottom:1px solid #e5e0f4;background:repeating-linear-gradient(to top,transparent 0,transparent 48px,#f3f0fa 49px,#f3f0fa 50px)}
+.paper-col{flex:1;position:relative;min-width:0;border-radius:9px 9px 0 0;background:#ded6fc;height:var(--height)}
+.paper-col:nth-child(2){background:#cce5ff}.paper-col:nth-child(3){background:#fbd4e5}.paper-col:nth-child(4){background:#ffe7c9}.paper-col:nth-child(5){background:#c8eee2}
+.paper-col b{position:absolute;top:-24px;left:0;right:0;text-align:center;font-size:13px}.paper-col span{position:absolute;top:calc(100% + 10px);left:-8px;right:-8px;text-align:center;font-size:11px;color:#777394}
+.donut{width:170px;height:170px;margin:18px auto}.donut span{width:125px;height:125px;color:#28234d}
+.breakdown{display:flex;align-items:center;gap:20px;flex-wrap:wrap}.breakdown ul{padding:0;list-style:none;flex:1;min-width:160px;font-size:12px;color:#787598}.breakdown li{margin:15px 0;display:flex;gap:8px}.breakdown li b{margin-left:auto}.dot{width:11px;height:11px;border-radius:50%;flex:none;margin-top:3px}
+.focus-row{padding:13px 0;border-bottom:1px solid #f2effb;font-size:13px;display:flex;justify-content:space-between;gap:10px}.focus-row b{color:#8c80c0}.section-link{font-size:12px;color:#9b83e9;float:right;background:none;border:0;padding:0;min-height:0}
+.track{background:#efebfb}.track i{background:linear-gradient(90deg,#bcadf1,#a2c8ed)}
+.class-filter-bar,.connect-panel{border-color:var(--line)}.class-filter-bar label{color:#686081}.class-filter-bar select{background:#faf8ff;border-color:#dfd8f2}
+@media(max-width:1200px){nav{width:210px}header,main{margin-left:210px}.overview-bottom{grid-template-columns:1fr 1fr}.overview-bottom section:last-child{grid-column:1/-1}.cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:800px){header,main{margin-left:0}header{padding:20px 18px 0}main{padding:16px}nav{position:static;width:100%;padding:0;flex-direction:row;background:none;border:0;gap:8px;overflow:auto}nav:before,nav:after{display:none}nav button{background:#efecfb;white-space:nowrap;font-size:11px;padding:12px}.overview-charts,.overview-bottom{grid-template-columns:1fr}.overview-bottom section:last-child{grid-column:auto}.welcome h2{font-size:23px}.card{padding:18px 14px 18px 56px}.card:before{left:15px}.card b{font-size:27px}.filters{padding:14px}.breakdown{justify-content:center}}
+@media print{nav{display:none}header,main{margin-left:0}.overview-charts,.overview-bottom{display:block}}
+
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -651,5 +699,29 @@ if(tab==='Item analysis'){
 }
 $('content').innerHTML=html}
 $('exam').onchange=()=>{selectedStudentFocus='';setClasses();render()};$('classFilter').onchange=()=>{selectedStudentFocus='';render()};$('search').oninput=()=>{updateStudentLookup();if(tab!=='Overview'&&tab!=='Class performance')render()};if(urlSettings.get('setup')==='1')showConnectionSetup();
+const originalRender=render;
+render=function(){
+ originalRender();
+ if(!D||tab!=='Overview')return;
+ const rows=filtered(D.results),s=stats(rows),valid=rows.filter(r=>mark(r)!==null);
+ const scores=valid.map(mark),highest=scores.length?Math.max(...scores):null;
+ const lowest=scores.length?Math.min(...scores):null;
+ const bands=[{label:'Excellent (80–100)',min:80,color:'#c3eee2'},{label:'Good (60–79)',min:60,color:'#cbe4ff'},{label:'Average (40–59)',min:40,color:'#ffe7c8'},{label:'Below pass mark (0–39)',min:0,color:'#ffd4e4'}];
+ bands.forEach((b,i)=>b.count=scores.filter(x=>x>=b.min&&(i===0||x<bands[i-1].min)).length);
+ let cursor=0;const stops=bands.map(b=>{const start=cursor;cursor+=scores.length?b.count/scores.length*100:0;return b.color+' '+start+'% '+cursor+'%'}).join(',');
+ const parts={};filtered(D.items).forEach(r=>{const score=num(r.Score),max=num(r.Max_Score);if(score===null||max===null||max<=0||score<0||score>max)return;const key=r.Paper||'Other';if(!parts[key])parts[key]={score:0,max:0};parts[key].score+=score;parts[key].max+=max});
+ const papers=Object.entries(parts).map(([label,v])=>({label,value:100*v.score/v.max})).sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true}));
+ const bars=papers.length?papers:[{label:'Overall',value:scores.length?Number(s.avg):0}];
+ const top=valid.slice().sort((a,b)=>mark(b)-mark(a)).slice(0,5);
+ const focus=papers.slice().sort((a,b)=>a.value-b.value).slice(0,3);
+ $('content').innerHTML='<div class="welcome"><p>Your teaching dashboard</p><h2>Here’s your '+esc($('form').value||'cohort')+' English overview <span>♡</span></h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Track progress, identify strengths and plan your next steps.</p></div>'+
+ '<div class="cards">'+card('Total students',rows.length)+card('Average mark',s.avg==='—'?'—':s.avg+'%')+card('Highest score',highest===null?'—':highest+'%')+card('Lowest score',lowest===null?'—':lowest+'%')+'</div>'+
+ '<div class="overview-charts"><section><h2>Average Score by Paper</h2><p class="muted">'+(papers.length?'Based on recorded item scores; blanks are excluded.':'Paper scores have not been entered for this selection. Showing the overall mark.')+'</p><div class="paper-bars">'+bars.map(p=>'<div class="paper-col" style="--height:'+Math.max(1,p.value)+'%"><b>'+p.value.toFixed(1)+'%</b><span>'+esc(p.label)+'</span></div>').join('')+'</div></section>'+
+ '<section><h2>Performance Breakdown</h2><div class="breakdown"><div class="donut" style="background:'+(scores.length?'conic-gradient('+stops+')':'#efedf8')+'"><span>'+esc(s.avg)+(scores.length?'%':'')+'<small>Average</small></span></div><ul>'+bands.map(b=>'<li><i class="dot" style="background:'+b.color+'"></i>'+b.label+'<b>'+b.count+'</b></li>').join('')+'</ul></div><p class="muted">'+s.sat+' valid marks · '+s.missing+' missing / absent · '+(s.rate===null?'—':s.rate+'%')+' pass rate</p></section></div>'+
+ '<div class="overview-bottom"><section><button class="section-link" onclick="selectDashboardPage(\'Class performance\')">View classes →</button><h2>Top Performing Students</h2>'+table(['Name','Mark'],top.map(r=>[r.Student_Name,mark(r)]))+'</section>'+
+ '<section><button class="section-link" onclick="selectDashboardPage(\'Item analysis\')">View analysis →</button><h2>Areas to Focus</h2>'+(focus.length?focus.map(p=>'<div class="focus-row"><span>'+esc(p.label)+'</span><b>'+p.value.toFixed(1)+'%</b></div>').join(''):'<p class="muted">Add paper or part scores to see which areas need the most support.</p>')+'<p class="muted">Papers ordered from lowest recorded accuracy.</p></section>'+
+ '<section><h2>At a Glance</h2><div class="focus-row"><span>Classes</span><b>'+unique(rows.map(r=>r.Class_At_Exam)).length+'</b></div><div class="focus-row"><span>Passed</span><b>'+s.pass+'</b></div><div class="focus-row"><span>Below pass mark</span><b>'+s.fail+'</b></div><div class="focus-row"><span>Missing / absent</span><b>'+s.missing+'</b></div><p class="muted">Use Refresh from Sheet after updating marks.</p></section></div>';
+};
+
 load();
 </script></body></html>
