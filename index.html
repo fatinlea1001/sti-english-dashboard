@@ -297,11 +297,11 @@ $('copy-dashboard-url').addEventListener('click',async()=>{
 });
 
 let requestCounter=0;
-function readSheet(name,headers=1){return new Promise((resolve,reject)=>{
+function readSheet(name,headers=1,timeoutMs=25000){return new Promise((resolve,reject)=>{
  const cb='sheetResponse_'+Date.now()+'_'+(++requestCounter),script=document.createElement('script');
  let timer;function clean(){clearTimeout(timer);script.remove();delete window[cb]}
  window[cb]=response=>{clean();if(response.status==='error'||!response.table){reject(new Error('Could not read '+name));return}const t=response.table,rows=t.rows.map(r=>t.cols.map((c,i)=>r.c[i]?(r.c[i].f??r.c[i].v??''):''));resolve(headers===3?[[],[],[],...rows]:[t.cols.map(c=>c.label),...rows])};
- script.onerror=()=>{clean();reject(new Error('Connection failed for '+name))};timer=setTimeout(()=>{clean();reject(new Error('Timed out reading '+name))},25000);
+ script.onerror=()=>{clean();reject(new Error('Connection failed for '+name))};timer=setTimeout(()=>{clean();reject(new Error('Timed out reading '+name))},timeoutMs);
  const params=new URLSearchParams({sheet:name,headers:String(headers),tqx:'out:json;responseHandler:'+cb,_:String(Date.now())});
  script.src='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?'+params;document.head.appendChild(script);
 })}
@@ -326,7 +326,7 @@ function readAppsScriptFeed(){
 async function load(){
  $('refresh').disabled=true;$('status').textContent='Reading the latest data from Google Sheets…';
  try{
-  let data;
+  let data, itemAnalysisUnavailable=false;
   if(SCRIPT_API_URL){
    data=await readAppsScriptFeed();
    for(const key of ['results','targets','interventions','items','tracker']){
@@ -336,7 +336,7 @@ async function load(){
    // Preserved fallback for the original link-viewable Sheet connection.
    const [results,tracker,targets,interventions,items,settings]=await Promise.all([
     readSheet('RESULTS_DATA'),readSheet('HEADCOUNT_TRACKER',3),readSheet('TARGETS'),
-    readSheet('INTERVENTION'),readSheet('ITEM_ANALYSIS_DATA'),readSheet('SETTINGS')
+    readSheet('INTERVENTION'),readSheet('ITEM_ANALYSIS_DATA',1,12000).catch(()=>{itemAnalysisUnavailable=true;return []; }),readSheet('SETTINGS')
    ]);
    const passRow=settings.find(r=>r[0]==='Official Pass Mark (0–100)');
    const passMark=passRow?num(passRow[1]):null;
@@ -370,7 +370,8 @@ async function load(){
   syncCohortMenu();
   $('status').className='muted';
   $('status').textContent=(SCRIPT_API_URL?'Apps Script connected · ':'Direct Sheet connected · ')+
-   'Retrieved '+new Date(D.updated).toLocaleString()+' · Pass mark '+D.passMark+'/100 · Refresh after Sheet updates.';
+   'Retrieved '+new Date(D.updated).toLocaleString()+' · Pass mark '+D.passMark+'/100 · Refresh after Sheet updates.'+
+   (itemAnalysisUnavailable?' Item analysis did not load this time; other dashboard data is available. Try Refresh from Sheet later.':'');
   render();
  }catch(e){
   $('status').className='error';
