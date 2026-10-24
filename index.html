@@ -218,7 +218,8 @@ function trackerWithGrades(row){
  for(const i of [4,6,8,10,12,14,16,18]){
    result[i]=String(result[i]).trim().toUpperCase()==='TH'?'TH':gradeFor(result[i-1]);
  }
- return result;
+ // OTR1/2/3 are internal targets, not examination marks; hide them in all reports.
+ return result.filter((_,i)=>![5,6,9,10,13,14].includes(i));
 }
 
 function objects(a){return a.slice(1).filter(r=>r.some(v=>v!=='')).map(r=>Object.fromEntries(a[0].map((h,i)=>[h,r[i]??''])))}
@@ -679,7 +680,7 @@ if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(
   classStudentResults(rows)+'</section>';
 }}
 
-if(tab==='Headcount & targets'){let tr=D.tracker.slice(3).filter(r=>r[2]&&String(r[0])===$('cohort').value&&(!$('classFilter').value||r[1]===$('classFilter').value)&&String(r[2]).toLowerCase().includes($('search').value.trim().toLowerCase()));html='<section><h2>Individual headcount</h2><p class="muted">M = Mark · G = Grade · TH = Absent</p>'+table(['Cohort','Class (2026)','Student','TOV M','TOV G','OTR1 M','OTR1 G','AR1 M','AR1 G','OTR2 M','OTR2 G','AR2 M','AR2 G','OTR3 M','OTR3 G','AR3 M','AR3 G','ETR M','ETR G'],tr.map(trackerWithGrades))+'</section><section><h2>Class targets · '+esc($('exam').value)+'</h2>'+table(['Year','Class','Target passes','Target pass %','Notes'],filtered(D.targets).map(r=>[r.Academic_Year,r.Class,r.Target_Passes,r['Target_Pass_%'],r.Notes]))+'</section>'}
+if(tab==='Headcount & targets'){let tr=D.tracker.slice(3).filter(r=>r[2]&&String(r[0])===$('cohort').value&&(!$('classFilter').value||r[1]===$('classFilter').value)&&String(r[2]).toLowerCase().includes($('search').value.trim().toLowerCase()));html='<section><h2>Individual headcount</h2><p class="muted">M = Mark · G = Grade · TH = Absent</p>'+table(['Cohort','Class','Student','TOV M','TOV G','AR1 M','AR1 G','AR2 M','AR2 G','AR3 M','AR3 G','ETR M','ETR G'],tr.map(trackerWithGrades))+'</section><section><h2>Class targets · '+esc($('exam').value)+'</h2>'+table(['Year','Class','Target passes','Target pass %','Notes'],filtered(D.targets).map(r=>[r.Academic_Year,r.Class,r.Target_Passes,r['Target_Pass_%'],r.Notes]))+'</section>'}
 if(tab==='Interventions')html='<section><h2>Intervention records</h2>'+table(['Student','Class','Exam','Weak paper','Weak part','Intervention','Start','Follow-up','Status','Notes'],filtered(D.interventions).map(r=>[r.Student_Name,r.Class,r.Exam,r.Weak_Paper,r.Weak_Part,r.Intervention,r.Start_Date,r.Follow_Up_Date,r.Status,r.Notes]))+'</section>';
 if(tab==='Item analysis'){
  const items=filtered(D.items);
@@ -826,7 +827,7 @@ function renderIndividualReport(){
  html+='<p class="muted">Comparison uses the latest available item-analysis examination: '+esc(latestKey.split('|').filter(Boolean).join(' · '))+'. These are relative strengths and areas to review based on recorded scores.</p>';
  }else html+='<p class="muted">No paper or part scores are recorded for this student yet. Overall marks alone cannot identify specific skill weaknesses.</p>';
  html+=table(['Year','Form','Exam','Paper','Part','Score','Maximum','Accuracy','Recorded weakness / notes'],items.map(r=>[r.Academic_Year,r.Form,r.Exam,r.Paper,r.Part,r.Score,r.Max_Score,num(r.Score)!==null&&num(r.Max_Score)>0?(100*num(r.Score)/num(r.Max_Score)).toFixed(1)+'%':'—',r.Weakness_Notes]))+'</section>';
- html+='<section><h2>Headcount & Targets</h2>'+table(['Cohort','Class','Student','TOV M','TOV G','OTR1 M','OTR1 G','AR1 M','AR1 G','OTR2 M','OTR2 G','AR2 M','AR2 G','OTR3 M','OTR3 G','AR3 M','AR3 G','ETR M','ETR G'],tracker.map(trackerWithGrades))+'</section>';
+ html+='<section><h2>Headcount & Targets</h2>'+table(['Cohort','Class','Student','TOV M','TOV G','AR1 M','AR1 G','AR2 M','AR2 G','AR3 M','AR3 G','ETR M','ETR G'],tracker.map(trackerWithGrades))+'</section>';
  html+='<section><h2>Interventions & Follow-up</h2>'+table(['Exam','Class','Weak paper','Weak part','Intervention','Start','Follow-up','Status','Notes'],interventions.map(r=>[r.Exam,r.Class,r.Weak_Paper,r.Weak_Part,r.Intervention,r.Start_Date,r.Follow_Up_Date,r.Status,r.Notes]))+'</section>';
  el.innerHTML=html;
 }
