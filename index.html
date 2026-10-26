@@ -253,6 +253,12 @@ function buildCohortIndex(){
    })}))
  }));
 }
+// Display the academic year next to each form without changing Sheet/filter values.
+function formWithYear(cohortYear,form){
+ const year=Number(cohortYear),match=String(form).match(/^Form\s*([45])$/i);
+ if(!Number.isInteger(year)||!match)return String(form);
+ return String(form)+' ('+(year-(match[1]==='4'?1:0))+')';
+}
 function formInfo(year,form){return cohortIndex.find(x=>x.year===String(year))?.forms.find(x=>x.form===String(form));}
 function availableForms(year){return cohortIndex.find(x=>x.year===String(year))?.forms.map(f=>f.form)||[];}
 function bestFormFor(year){
@@ -262,7 +268,7 @@ function bestFormFor(year){
 function updateCohortSummary(){
  if(!D)return;
  const year=$('cohort').value,form=$('form').value,exam=$('exam').value;
- $('cohort-trigger').innerHTML='<span>'+esc('SPM '+year+' → '+(form||'All forms')+' → '+(exam||'Select exam'))+'</span><span aria-hidden="true">▾</span>';
+ $('cohort-trigger').innerHTML='<span>'+esc('SPM '+year+' → '+(form?formWithYear(year,form):'All forms')+' → '+(exam||'Select exam'))+'</span><span aria-hidden="true">▾</span>';
  $('cohort-menu').querySelectorAll('.cohort-exam-choice').forEach(el=>{
   const selected=el.dataset.year===year&&el.dataset.form===form&&el.dataset.exam===exam;
   el.classList.toggle('is-selected',selected);
@@ -279,8 +285,8 @@ function syncCohortMenu(){
    '<div class="submenu-heading">CHOOSE FORM</div>'+
    y.forms.map(f=>'<div class="cohort-form-row">'+
     '<button type="button" class="cohort-form-button" data-open-form="'+esc(f.form)+'" aria-expanded="false">'+
-    '<span>'+esc(f.form)+'</span><span aria-hidden="true">›</span></button>'+
-    '<div class="cohort-exams" role="group" aria-label="Exams for '+esc(f.form)+'">'+
+    '<span>'+esc(formWithYear(y.year,f.form))+'</span><span aria-hidden="true">›</span></button>'+
+    '<div class="cohort-exams" role="group" aria-label="Exams for '+esc(formWithYear(y.year,f.form))+'">'+
     '<div class="submenu-heading">CHOOSE EXAM</div>'+
     (f.exams.length?f.exams.map(ex=>'<button type="button" class="cohort-exam-choice" data-year="'+esc(y.year)+
      '" data-form="'+esc(f.form)+'" data-exam="'+esc(ex.exam)+'" aria-current="false">'+
