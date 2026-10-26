@@ -183,6 +183,8 @@ th,.paper-col span,.breakdown ul,.class-filter-bar p,.class-filter-bar label{col
 nav button:nth-child(3):before{content:"♙"}nav button:nth-child(4):before{content:"◎"}nav button:nth-child(5):before{content:"♡"}nav button:nth-child(6):before{content:"▤"}
 @media(min-width:801px) and (max-height:800px){nav:after{display:none}}
 .student-progress{overflow-x:auto}.student-progress svg{display:block;width:100%;min-width:560px;height:auto}
+/* Keep expanded examination labels readable on narrow screens. */
+.filters .cohort-trigger>span:first-child{white-space:normal;overflow-wrap:break-word}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -239,7 +241,7 @@ const unique=a=>[...new Set(a.filter(x=>x!==''&&x!==null).map(String))].sort();
    place (hidden) so all existing charts, student search and cross-tab filtering work. */
 let cohortIndex=[];
 const examOrder=['TOV','AR1','AR2','AR3','SPM'];
-function examDisplayName(exam){return exam==='TOV'?'TOV (PPT – Peperiksaan Pertengahan Tahun)':exam==='AR1'?'AR1 (PAT – Peperiksaan Akhir Tahun)':exam;}
+function examDisplayName(exam){return ({TOV:'TOV (PPT F4)',AR1:'AR1 (PAT F4)',AR2:'AR2 (PPT F5)',AR3:'AR3 (PPC F5)'})[exam]||exam;}
 function buildCohortIndex(){
  const years=new Map();
  for(const r of D.results){
@@ -278,7 +280,7 @@ function bestFormFor(year){
 function updateCohortSummary(){
  if(!D)return;
  const year=$('cohort').value,form=$('form').value,exam=$('exam').value;
- $('cohort-trigger').innerHTML='<span>'+esc('SPM '+year+' → '+(form?formWithYear(year,form):'All forms')+' → '+(exam||'Select exam'))+'</span><span aria-hidden="true">▾</span>';
+ $('cohort-trigger').innerHTML='<span>'+esc('SPM '+year+' → '+(form?formWithYear(year,form):'All forms')+' → '+(examDisplayName(exam)||'Select exam'))+'</span><span aria-hidden="true">▾</span>';
  $('cohort-menu').querySelectorAll('.cohort-exam-choice').forEach(el=>{
   const selected=el.dataset.year===year&&el.dataset.form===form&&el.dataset.exam===exam;
   el.classList.toggle('is-selected',selected);
@@ -300,7 +302,7 @@ function syncCohortMenu(){
     '<div class="submenu-heading">CHOOSE EXAM</div>'+
     (f.exams.length?f.exams.map(ex=>'<button type="button" class="cohort-exam-choice" data-year="'+esc(y.year)+
      '" data-form="'+esc(f.form)+'" data-exam="'+esc(ex.exam)+'" aria-current="false">'+
-     '<span>'+esc(ex.exam)+'</span><small>'+(ex.marked?ex.marked+' marks entered':'No marks yet')+'</small></button>').join(''):
+     '<span>'+esc(examDisplayName(ex.exam))+'</span><small>'+(ex.marked?ex.marked+' marks entered':'No marks yet')+'</small></button>').join(''):
      '<p class="submenu-heading">No exams available</p>')+
     '</div></div>').join('')+
    '</div></div>').join('');
@@ -701,7 +703,7 @@ function classPerformanceSelector(){
   classNames.map(name=>'<option value="'+esc(name)+'"'+(selected===name?' selected':'')+'>'+esc(name)+'</option>').join('')+
   '</select></label><p>Select an individual class to see its performance and student results, or choose All Classes.</p></div>';
 }
-function render(){if(!D)return;updateCohortSummary();$('nav').innerHTML=['Overview','Class performance','Individual student','Headcount & targets','Interventions','Item analysis'].map(t=>'<button class="'+(t===tab?'active':'')+'" onclick="selectDashboardPage(this.textContent)">'+t+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc($('exam').value)+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
+function render(){if(!D)return;updateCohortSummary();$('nav').innerHTML=['Overview','Class performance','Individual student','Headcount & targets','Interventions','Item analysis'].map(t=>'<button class="'+(t===tab?'active':'')+'" onclick="selectDashboardPage(this.textContent)">'+t+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc(examDisplayName($('exam').value))+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc(examDisplayName($('exam').value))+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
 if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Class pass rate</h2><p class="muted">Percentage of candidates with valid marks</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Pass & fail distribution</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>pass rate</small></span></div><p class="legend">● Pass '+s.pass+' &nbsp; / &nbsp; Fail '+s.fail+' · Sat '+s.sat+'</p>':'<p class="muted">No valid marks yet.</p>')+'</section></div>';html=(tab==='Class performance'?classPerformanceSelector():'')+charts+html;if(tab==='Class performance'){
  const className=$('classFilter').value;
  html+='<section><h2>Class details</h2>'+table(['Class','Sat','Pass','Fail','Average'],
@@ -716,7 +718,7 @@ if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(
   classStudentResults(rows)+'</section>';
 }}
 
-if(tab==='Headcount & targets'){let tr=D.tracker.slice(3).filter(r=>r[2]&&String(r[0])===$('cohort').value&&(!$('classFilter').value||r[1]===$('classFilter').value)&&String(r[2]).toLowerCase().includes($('search').value.trim().toLowerCase()));html='<section><h2>Individual headcount</h2><p class="muted">M = Mark · G = Grade · TH = Absent</p>'+table(['Cohort','Class','Student','TOV M','TOV G','AR1 M','AR1 G','AR2 M','AR2 G','AR3 M','AR3 G','ETR M','ETR G'],tr.map(trackerWithGrades))+'</section><section><h2>Class targets · '+esc($('exam').value)+'</h2>'+table(['Year','Class','Target passes','Target pass %','Notes'],filtered(D.targets).map(r=>[r.Academic_Year,r.Class,r.Target_Passes,r['Target_Pass_%'],r.Notes]))+'</section>'}
+if(tab==='Headcount & targets'){let tr=D.tracker.slice(3).filter(r=>r[2]&&String(r[0])===$('cohort').value&&(!$('classFilter').value||r[1]===$('classFilter').value)&&String(r[2]).toLowerCase().includes($('search').value.trim().toLowerCase()));html='<section><h2>Individual headcount</h2><p class="muted">M = Mark · G = Grade · TH = Absent</p>'+table(['Cohort','Class','Student','TOV M','TOV G','AR1 M','AR1 G','AR2 M','AR2 G','AR3 M','AR3 G','ETR M','ETR G'],tr.map(trackerWithGrades))+'</section><section><h2>Class targets · '+esc(examDisplayName($('exam').value))+'</h2>'+table(['Year','Class','Target passes','Target pass %','Notes'],filtered(D.targets).map(r=>[r.Academic_Year,r.Class,r.Target_Passes,r['Target_Pass_%'],r.Notes]))+'</section>'}
 if(tab==='Interventions')html='<section><h2>Intervention records</h2>'+table(['Student','Class','Exam','Weak paper','Weak part','Intervention','Start','Follow-up','Status','Notes'],filtered(D.interventions).map(r=>[r.Student_Name,r.Class,r.Exam,r.Weak_Paper,r.Weak_Part,r.Intervention,r.Start_Date,r.Follow_Up_Date,r.Status,r.Notes]))+'</section>';
 if(tab==='Item analysis'){
  const items=filtered(D.items);
@@ -737,7 +739,7 @@ if(tab==='Item analysis'){
   addTo(aggreg,r.Paper+' | '+r.Part,r);
   addTo(byClass,r.Class_At_Exam+' | '+r.Paper+' | '+r.Part,r);
  });
- html='<section class="intro"><h2>Item Analysis · '+esc($('exam').value)+'</h2>'+
+ html='<section class="intro"><h2>Item Analysis · '+esc(examDisplayName($('exam').value))+'</h2>'+
   '<p>SPM Cohort '+esc($('cohort').value)+' · '+students.length+' students · '+
   valid.length+' scored parts · '+classes.length+' classes</p></section>';
  if(!items.length){
@@ -793,7 +795,7 @@ render=function(){
  const bars=papers.length?papers:[{label:'Overall',value:scores.length?Number(s.avg):0}];
  const top=valid.slice().sort((a,b)=>mark(b)-mark(a)).slice(0,5);
  const focus=papers.slice().sort((a,b)=>a.value-b.value).slice(0,3);
- $('content').innerHTML='<div class="welcome"><p>Your teaching dashboard</p><h2>Here’s your '+esc($('form').value||'cohort')+' English overview <span>♡</span></h2><p>SPM '+esc($('cohort').value)+' · '+esc($('exam').value)+' · Track progress, identify strengths and plan your next steps.</p></div>'+
+ $('content').innerHTML='<div class="welcome"><p>Your teaching dashboard</p><h2>Here’s your '+esc($('form').value||'cohort')+' English overview <span>♡</span></h2><p>SPM '+esc($('cohort').value)+' · '+esc(examDisplayName($('exam').value))+' · Track progress, identify strengths and plan your next steps.</p></div>'+
  '<div class="cards">'+card('Total students',rows.length)+card('Average mark',s.avg==='—'?'—':s.avg+'%')+card('Highest score',highest===null?'—':highest+'%')+card('Lowest score',lowest===null?'—':lowest+'%')+'</div>'+
  '<div class="cards outcome-cards">'+card('Pass Rate (Peratus Lulus)',s.rate===null?'—':s.rate+'%')+card('Subject Grade Point Average (GPMP)',gpmp)+'</div><p class="muted metric-note">Peratus lulus: lulus ÷ calon hadir. GPMP: purata nilai gred (A+ = 0 hingga G = 9); lebih rendah lebih baik. TH dan markah kosong dikecualikan.</p>'+
  '<div class="overview-charts"><section><h2>Average Score by Paper</h2><p class="muted">'+(papers.length?'Based on recorded item scores; blanks are excluded.':'Paper scores have not been entered for this selection. Showing the overall mark.')+'</p><div class="paper-bars">'+bars.map(p=>'<div class="paper-col" style="--height:'+Math.max(1,p.value)+'%"><b>'+p.value.toFixed(1)+'%</b><span>'+esc(p.label)+'</span></div>').join('')+'</div></section>'+
