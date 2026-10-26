@@ -176,6 +176,9 @@ th,.paper-col span,.breakdown ul,.class-filter-bar p,.class-filter-bar label{col
 #individual-matches{display:grid;gap:8px;max-height:330px;overflow:auto}
 .individual-result{text-align:left;display:grid;gap:5px;padding:14px;background:#f6f3ff;border:1px solid #e2dcf4;color:#352d4b}
 .individual-result:hover{background:#e9e1fa}.individual-result span{font-size:12px;color:#554969}
+.class-student-link{color:#6750b5;font-weight:700;text-decoration:underline;text-underline-offset:3px;display:inline-block;padding:5px 2px}
+.class-student-link:hover{color:#4b3596;text-decoration-thickness:2px}
+.class-student-link:focus-visible{outline:3px solid #9a88ed;outline-offset:3px;border-radius:4px}
 #individual-report{scroll-margin-top:20px}.student-report-heading h2{font-size:22px}.student-report-heading{background:#f2efff}
 nav button:nth-child(3):before{content:"♙"}nav button:nth-child(4):before{content:"◎"}nav button:nth-child(5):before{content:"♡"}nav button:nth-child(6):before{content:"▤"}
 @media(min-width:801px) and (max-height:800px){nav:after{display:none}}
@@ -624,11 +627,14 @@ function gradeDistribution(rows){
   ' graded/absent records; '+missing+' not yet marked. TH means absent. Bars are scaled to the highest grade count.</p>';
  return output;
 }
+let classStudentLinkRows=[];
 function classStudentResults(rows){
+ classStudentLinkRows=[];
  if(!rows.length)return '<p class="muted">No students match these cohort, exam and class filters.</p>';
  const sorted=rows.slice().sort((a,b)=>
   String(a.Class_At_Exam||'').localeCompare(String(b.Class_At_Exam||''))||
   String(a.Student_Name||'').localeCompare(String(b.Student_Name||'')));
+ classStudentLinkRows=sorted;
  const head=['No.','Student','Year','Form','Class','Exam','Mark /100','Grade','Result'];
  let html='<div class="scroll"><table><thead><tr>'+head.map(v=>'<th>'+esc(v)+'</th>').join('')+'</tr></thead><tbody>';
  sorted.forEach((r,i)=>{
@@ -636,9 +642,26 @@ function classStudentResults(rows){
   const values=[i+1,r.Student_Name,r.Academic_Year,r.Form,r.Class_At_Exam,r.Exam,
    g==='TH'?'TH':m??'—',g||'—',g==='TH'?'Absent':m===null?'Not entered':m>=D.passMark?'Pass':'Fail'];
   const focused=selectedStudentFocus&&String(r.Student_Name||'').trim()===selectedStudentFocus;
-  html+='<tr'+(focused?' class="student-focused"':'')+'>'+values.map(v=>'<td>'+esc(v===''?'—':v)+'</td>').join('')+'</tr>';
+  const studentName=String(r.Student_Name||'').trim();
+  const nameLink=studentName?
+   '<a href="#individual-report" class="class-student-link" aria-label="View individual report for '+esc(studentName)+'" onclick="openPerformanceStudent('+i+');return false;">'+esc(studentName)+'</a>':'—';
+  html+='<tr'+(focused?' class="student-focused"':'')+'>'+values.map((v,j)=>'<td>'+(j===1?nameLink:esc(v===''?'—':v))+'</td>').join('')+'</tr>';
  });
  return html+'</tbody></table></div>';
+}
+function openPerformanceStudent(index){
+ const record=classStudentLinkRows[Number(index)];
+ if(!record||!D)return;
+ const cohort=String(record.SPM_Cohort),key=String(record.Student_Name||'').trim().toUpperCase();
+ const person=individualStudents().find(p=>p.cohort===cohort&&p.key===key);
+ if(!person)return;
+ individualSelection=person;
+ individualQuery='';
+ individualClassKey='';
+ individualBrowseStudent='';
+ selectDashboardPage('Individual student');
+ const report=$('individual-report');
+ if(report)report.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function selectDashboardPage(page){
  // The class dropdown is specific to Class Performance; never filter other tabs invisibly.
