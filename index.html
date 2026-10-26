@@ -920,7 +920,7 @@ render=function(){
  const cohorts=[...new Set(classes.map(c=>c.cohort))];
  const classOptions=cohorts.map(cohort=>'<optgroup label="SPM '+esc(cohort)+'">'+
   classes.filter(c=>c.cohort===cohort).map(c=>'<option value="'+esc(c.key)+'"'+
-   (c.key===individualClassKey?' selected':'')+'>'+esc(c.name+' ('+c.year+')')+'</option>').join('')+
+   (c.key===individualClassKey?' selected':'')+'>'+esc(c.form+' · '+c.name+' ('+c.year+')')+'</option>').join('')+
   '</optgroup>').join('');
  $('content').innerHTML='<div class="welcome"><h2>Individual Student Report</h2><p>Choose a student from any recorded class, or search by name, to view their Form 4–5 history.</p></div>'+
   '<section class="individual-finder"><h3>Browse students by class</h3><div class="individual-browse-grid">'+
