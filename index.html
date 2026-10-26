@@ -165,6 +165,13 @@ th,.paper-col span,.breakdown ul,.class-filter-bar p,.class-filter-bar label{col
 .metric-note{font-size:12px;margin:-6px 0 22px}
 @media(max-width:420px){.cards.outcome-cards{grid-template-columns:1fr}}
 
+.individual-browse-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0 12px}
+.individual-browse-grid label{display:grid;gap:8px;font-weight:700;color:#4f4667}
+.individual-browse-grid select{width:100%;min-width:0;padding:14px 12px;background:#faf8ff;color:#352d4b;border:1px solid #e2dcf4;border-radius:12px}
+.individual-browse-grid select:disabled{opacity:.65}
+.individual-finder .browse-note{margin:4px 0 18px}
+.individual-finder .find-divider{border-top:1px solid #e7e2f4;padding-top:19px;margin-top:20px}
+@media(max-width:600px){.individual-browse-grid{grid-template-columns:1fr}}
 #individual-search{width:100%;margin:12px 0;padding:15px;background:#faf8ff;color:#352d4b}
 #individual-matches{display:grid;gap:8px;max-height:330px;overflow:auto}
 .individual-result{text-align:left;display:grid;gap:5px;padding:14px;background:#f6f3ff;border:1px solid #e2dcf4;color:#352d4b}
@@ -773,13 +780,71 @@ render=function(){
  '<section><h2>At a Glance</h2><div class="focus-row"><span>Classes</span><b>'+unique(rows.map(r=>r.Class_At_Exam)).length+'</b></div><div class="focus-row"><span>Passed</span><b>'+s.pass+'</b></div><div class="focus-row"><span>Below pass mark</span><b>'+s.fail+'</b></div><div class="focus-row"><span>Missing / absent</span><b>'+s.missing+'</b></div><p class="muted">Use Refresh from Sheet after updating marks.</p></section></div>';
 };
 
-let individualSelection=null,individualQuery='';
+let individualSelection=null,individualQuery='',individualClassKey='',individualBrowseStudent='';
 function studentIdentity(r){return String(r.Student_Name||'').trim().toUpperCase()}
 function sameStudent(r,p){return studentIdentity(r)===p.key&&String(r.SPM_Cohort)===p.cohort}
 function individualStudents(){
  const people=new Map();
  D.results.forEach(r=>{if(!studentIdentity(r))return;const cohort=String(r.SPM_Cohort),key=studentIdentity(r),id=JSON.stringify([cohort,key]);if(!people.has(id))people.set(id,{key,cohort,name:String(r.Student_Name).trim(),classes:new Set()});if(r.Class_At_Exam)people.get(id).classes.add(r.Class_At_Exam)});
  return [...people.values()].sort((a,b)=>a.name.localeCompare(b.name)||b.cohort.localeCompare(a.cohort));
+}
+// Browser lists every cohort and recorded class, regardless of Overview filters.
+function individualClassOptions(){
+ const found=new Map();
+ D.results.forEach(r=>{
+  const cohort=String(r.SPM_Cohort||'').trim();
+  const form=String(r.Form||'').trim();
+  const name=String(r.Class_At_Exam||r.Class||'').trim();
+  if(!cohort||!name)return;
+  const formNumber=/^Form\s*([45])$/i.exec(form);
+  const year=formNumber&&Number.isInteger(Number(cohort))?
+   String(Number(cohort)-(formNumber[1]==='4'?1:0)):String(r.Academic_Year||'').trim();
+  const key=JSON.stringify([cohort,form,name]);
+  if(!found.has(key))found.set(key,{key,cohort,form,name,year});
+ });
+ return [...found.values()].sort((a,b)=>Number(b.cohort)-Number(a.cohort)||
+  a.form.localeCompare(b.form,undefined,{numeric:true})||
+  a.name.localeCompare(b.name,undefined,{numeric:true}));
+}
+function individualClassRoster(){
+ const chosen=individualClassOptions().find(c=>c.key===individualClassKey);
+ if(!chosen)return [];
+ const ids=new Set(D.results.filter(r=>String(r.SPM_Cohort||'').trim()===chosen.cohort&&
+  String(r.Form||'').trim()===chosen.form&&
+  String(r.Class_At_Exam||r.Class||'').trim()===chosen.name)
+  .map(r=>JSON.stringify([chosen.cohort,studentIdentity(r)])));
+ return individualStudents().filter(p=>ids.has(JSON.stringify([p.cohort,p.key])));
+}
+function updateIndividualStudentDropdown(){
+ const dropdown=$('individual-student-select');
+ if(!dropdown)return;
+ const roster=individualClassRoster();
+ dropdown.disabled=!individualClassKey||!roster.length;
+ dropdown.innerHTML='<option value="">'+(!individualClassKey?'Choose a class first':roster.length?'Choose a student':'No students found')+'</option>'+
+  roster.map((p,i)=>'<option value="'+i+'">'+esc(p.name)+'</option>').join('');
+ const selected=roster.findIndex(p=>JSON.stringify([p.cohort,p.key])===individualBrowseStudent);
+ dropdown.value=selected<0?'':String(selected);
+ if(selected<0)individualBrowseStudent='';
+}
+function chooseIndividualClass(value){
+ individualClassKey=value;
+ individualBrowseStudent='';
+ individualQuery='';
+ $('individual-search').value='';
+ searchIndividual('');
+ updateIndividualStudentDropdown();
+}
+function showIndividualPerson(person){
+ if(!person)return;
+ individualSelection=person;
+ renderIndividualReport();
+ $('individual-report').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function chooseIndividualStudent(value){
+ const roster=individualClassRoster();
+ const person=value===''?null:roster[Number(value)];
+ individualBrowseStudent=person?JSON.stringify([person.cohort,person.key]):'';
+ if(person)showIndividualPerson(person);
 }
 let individualMatches=[];
 function searchIndividual(value){
@@ -788,7 +853,13 @@ function searchIndividual(value){
  individualMatches=q.length>=2?individualStudents().filter(p=>p.name.toLowerCase().includes(q)).slice(0,30):[];
  $('individual-matches').innerHTML=q.length<2?'<p class="muted">Type at least two letters to find a student across all cohorts.</p>':individualMatches.length?individualMatches.map((p,i)=>'<button class="individual-result" onclick="openIndividual('+i+')"><strong>'+esc(p.name)+'</strong><span>SPM '+esc(p.cohort)+' · '+esc([...p.classes].join(', ')||'Class not recorded')+'</span></button>').join(''):'<p class="muted">No matching student found.</p>';
 }
-function openIndividual(index){individualSelection=individualMatches[index];renderIndividualReport();$('individual-report').scrollIntoView({behavior:'smooth',block:'start'})}
+function openIndividual(index){
+ individualClassKey='';
+ individualBrowseStudent='';
+ if($('individual-class-select'))$('individual-class-select').value='';
+ updateIndividualStudentDropdown();
+ showIndividualPerson(individualMatches[index]);
+}
 
 function studentProgressGraph(results){
  const width=850,height=310,left=55,right=25,top=30,bottom=80,plotW=width-left-right,plotH=height-top-bottom;
@@ -841,7 +912,26 @@ const renderBeforeIndividual=render;
 render=function(){
  renderBeforeIndividual();
  if(tab!=='Individual student'||!D)return;
- $('content').innerHTML='<div class="welcome"><h2>Individual Student Report</h2><p>Search for a student to view their journey from Form 4 to Form 5.</p></div><section><label for="individual-search">Search student name</label><input id="individual-search" type="search" autocomplete="off" placeholder="Type a student’s name…" value="'+esc(individualQuery)+'" oninput="searchIndividual(this.value)"><div id="individual-matches" aria-live="polite"></div></section><div id="individual-report"></div>';
+ const classes=individualClassOptions();
+ if(!classes.some(c=>c.key===individualClassKey)){
+  individualClassKey='';
+  individualBrowseStudent='';
+ }
+ const cohorts=[...new Set(classes.map(c=>c.cohort))];
+ const classOptions=cohorts.map(cohort=>'<optgroup label="SPM '+esc(cohort)+'">'+
+  classes.filter(c=>c.cohort===cohort).map(c=>'<option value="'+esc(c.key)+'"'+
+   (c.key===individualClassKey?' selected':'')+'>'+esc(c.name+' ('+c.year+')')+'</option>').join('')+
+  '</optgroup>').join('');
+ $('content').innerHTML='<div class="welcome"><h2>Individual Student Report</h2><p>Choose a student from any recorded class, or search by name, to view their Form 4–5 history.</p></div>'+
+  '<section class="individual-finder"><h3>Browse students by class</h3><div class="individual-browse-grid">'+
+  '<label for="individual-class-select">Choose class<select id="individual-class-select" onchange="chooseIndividualClass(this.value)">'+
+  '<option value="">Choose a class</option>'+classOptions+'</select></label>'+
+  '<label for="individual-student-select">Choose student<select id="individual-student-select" onchange="chooseIndividualStudent(this.value)"></select></label>'+
+  '</div><p class="muted browse-note">Classes are grouped by SPM cohort and show their academic year. All cohorts are available, regardless of the filters above.</p>'+
+  '<div class="find-divider"><label for="individual-search">Or search student name</label>'+
+  '<input id="individual-search" type="search" autocomplete="off" placeholder="Type a student’s name…" value="'+esc(individualQuery)+'" oninput="searchIndividual(this.value)">'+
+  '<div id="individual-matches" aria-live="polite"></div></div></section><div id="individual-report"></div>';
+ updateIndividualStudentDropdown();
  searchIndividual(individualQuery);renderIndividualReport();
 };
 
