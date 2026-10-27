@@ -898,7 +898,7 @@ function studentProgressGraph(results){
  // Only connect adjacent recorded examinations. Missing marks never become zero.
  for(let i=1;i<results.length;i++){const a=mark(results[i-1]),b=mark(results[i]);if(a!==null&&b!==null)svg+='<line x1="'+x(i-1)+'" y1="'+y(a)+'" x2="'+x(i)+'" y2="'+y(b)+'" stroke="#8061bd" stroke-width="3"/>'}
  results.forEach((r,i)=>{
-  svg+='<text x="'+x(i)+'" y="'+(height-bottom+25)+'" text-anchor="middle" fill="#403752" font-size="12">'+esc(r.Exam)+'</text><text x="'+x(i)+'" y="'+(height-bottom+44)+'" text-anchor="middle" fill="#554969" font-size="11">'+esc(r.Form)+'</text><text x="'+x(i)+'" y="'+(height-bottom+61)+'" text-anchor="middle" fill="#554969" font-size="11">'+esc(r.Academic_Year)+'</text>';
+  svg+='<text x="'+x(i)+'" y="'+(height-bottom+25)+'" text-anchor="middle" fill="#403752" font-size="12">'+esc(examDisplayName(r.Exam))+'</text><text x="'+x(i)+'" y="'+(height-bottom+44)+'" text-anchor="middle" fill="#554969" font-size="11">'+esc(r.Form)+'</text><text x="'+x(i)+'" y="'+(height-bottom+61)+'" text-anchor="middle" fill="#554969" font-size="11">'+esc(r.Academic_Year)+'</text>';
   const m=mark(r);
   if(m!==null)svg+='<circle cx="'+x(i)+'" cy="'+y(m)+'" r="6" fill="#8061bd" stroke="white" stroke-width="2"><title>'+esc(r.Form+' · '+r.Exam+' · '+m+'/100')+'</title></circle><text x="'+x(i)+'" y="'+(y(m)-12)+'" text-anchor="middle" fill="#40305b" font-size="13" font-weight="700">'+m+'</text>';
   else svg+='<text x="'+x(i)+'" y="'+(top+plotH/2)+'" text-anchor="middle" fill="#6a617b" font-size="11">'+(gradeFor(r.Total_Mark_100,r.Attendance_Optional)==='TH'?'TH':'Not entered')+'</text>';
