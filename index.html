@@ -488,6 +488,7 @@ async function load(){
     row.Form='Form 4';
    }
   }
+  const firstLoad=!D;
   D=data;
   buildCohortIndex();
   const previousYear=$('cohort').value,previousForm=$('form').value;
@@ -496,7 +497,7 @@ async function load(){
   const forms=availableForms(currentYear);
   select('form',forms,false);
   $('form').value=(previousYear===currentYear&&forms.includes(previousForm))?previousForm:bestFormFor(currentYear);
-  setExams();
+  setExams(firstLoad);
   syncCohortMenu();
   $('status').className='muted';
   $('status').textContent=(SCRIPT_API_URL?'Apps Script connected · ':'Direct Sheet connected · ')+
@@ -510,11 +511,14 @@ async function load(){
   showConnectionSetup();
  }finally{$('refresh').disabled=false}
 }
-function setExams(){
+function setExams(firstLoad=false){
  const meta=formInfo($('cohort').value,$('form').value),available=meta?.exams||[];
  select('exam',available.map(x=>x.exam),false);
  const current=available.find(x=>x.exam===$('exam').value);
- if((!current||!current.marked)&&available.some(x=>x.marked)){
+ const latest=firstLoad&&examOrder.slice().reverse().find(code=>available.some(x=>x.exam===code&&x.marked>0));
+ if(latest){
+  $('exam').value=latest;
+ }else if((!current||!current.marked)&&available.some(x=>x.marked)){
   $('exam').value=available.slice().sort((a,b)=>b.marked-a.marked)[0].exam;
  }
  setClasses();
