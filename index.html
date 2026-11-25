@@ -842,50 +842,81 @@ function perbandinganPeperiksaan(){
    gpmp:values.reduce((sum,v)=>sum+ALL_GRADES.indexOf(gradeFor(v)),0)/values.length,
    excellent:values.filter(v=>v>=70).length};
  });
- const x=i=>48+88*i,y=v=>152-v*1.24;
- const grid=[0,25,50,75,100].map(v=>'<line x1="40" x2="413" y1="'+y(v)+'" y2="'+y(v)+'" stroke="#e2e6ee"/><text x="34" y="'+(y(v)+4)+'" text-anchor="end">'+v+'%</text>').join('');
- let plot='',previous=-1;
- summary.forEach((point,i)=>{
-  if(!point)return;
-  if(previous>=0&&(previous===i-1||i===4)){
-   plot+='<line x1="'+x(previous)+'" y1="'+y(summary[previous].rate)+'" x2="'+x(i)+'" y2="'+y(point.rate)+'" stroke="'+(i===4?'#995819':'#196f72')+'" stroke-width="2.5" '+(i===4?'stroke-dasharray="5 4"':'')+'/>';
+ const official=stages.map(()=>null);
+ const targetNum=v=>v==null||String(v).trim()===''?null:num(v);
+ const targetRate=v=>{
+  if(v==null||String(v).trim()==='')return null;
+  const str=String(v).trim(),n=Number(str.replace(/%$/,''));
+  return Number.isFinite(n)&&n>=0&&n<=100?n:null;
+ };
+ for(const row of (D.targets||[])){
+  if(String(row.SPM_Cohort)!==cohort||String(row.Class??'').trim()!==String(kelas??'').trim())continue;
+  const i=stages.indexOf(String(row.Exam).trim().toUpperCase());
+  if(i<1)continue;
+  const p={sat:targetNum(row.Target_Sat),pass:targetNum(row.Target_Passes),rate:targetRate(row['Target_Pass_%']),gpmp:targetNum(row.Target_GPMP),excellent:targetNum(row.Target_Excellent)};
+  if(p.rate!==null||p.gpmp!==null)official[i]=p;
+ }
+ // Official cohort targets take precedence over individual ETR summaries; never overwrite actuals.
+ const targets=official.slice();
+ if(!targets[4]&&summary[4])targets[4]=summary[4];
+ summary[4]=targets[4];
+ const actual=summary.map((p,i)=>i===4?null:p);
+ const hasOfficial=official.some(Boolean);
+ const hasTargets=targets.some(Boolean);
+ const x=i=>48+88*i;
+ function trendGraph(key,maximum,ticks,actualColor,axisSuffix,digits,title){
+  const y=v=>152-v*124/maximum;
+  const valid=p=>p&&Number.isFinite(p[key])&&p[key]>=0&&p[key]<=maximum;
+  const fmt=(v,d)=>v.toFixed(d)+axisSuffix;
+  const grid=ticks.map(v=>'<line x1="40" x2="413" y1="'+y(v)+'" y2="'+y(v)+'" stroke="#e2e6ee"/><text x="34" y="'+(y(v)+4)+'" text-anchor="end">'+v+axisSuffix+'</text>').join('');
+  const targetColor='#995819';
+  let targetLines='',actualLines='',targetDots='',actualDots='';
+  const first=targets.findIndex(valid);
+  let prev=-1,prevValue=null;
+  if(first===1&&valid(actual[0])){prev=0;prevValue=actual[0][key];}
+  else if(first===4){
+   for(let i=3;i>=0;i--)if(valid(actual[i])){prev=i;prevValue=actual[i][key];break;}
   }
-  previous=i;
- });
- const labels=stages.map((stage,i)=>{
-  const p=summary[i],color=i===4?'#995819':'#196f72';
-  return '<text x="'+x(i)+'" y="174" text-anchor="middle">'+stage+'</text>'+(p?'<circle cx="'+x(i)+'" cy="'+y(p.rate)+'" r="4" fill="'+color+'"/><text x="'+x(i)+'" y="'+(y(p.rate)-9)+'" text-anchor="middle">'+p.rate.toFixed(1)+'%</text>':'');
- }).join('');
- // GPMP uses the same cohort, class, valid marks and grade points as the comparison table.
- const gy=v=>152-v*(124/9);
- const gpmpGrid=[0,3,6,9].map(v=>'<line x1="40" x2="413" y1="'+gy(v)+'" y2="'+gy(v)+'" stroke="#e2e6ee"/><text x="34" y="'+(gy(v)+4)+'" text-anchor="end">'+v+'</text>').join('');
- let gpmpPlot='',gpmpPrevious=-1;
- summary.forEach((point,i)=>{
-  if(!point)return;
-  if(gpmpPrevious>=0&&(gpmpPrevious===i-1||i===4)){
-   gpmpPlot+='<line x1="'+x(gpmpPrevious)+'" y1="'+gy(summary[gpmpPrevious].gpmp)+'" x2="'+x(i)+'" y2="'+gy(point.gpmp)+'" stroke="'+(i===4?'#995819':'#7053a5')+'" stroke-width="2.5" '+(i===4?'stroke-dasharray="5 4"':'')+'/>';
-  }
-  gpmpPrevious=i;
- });
- const gpmpLabels=stages.map((stage,i)=>{
-  const p=summary[i],color=i===4?'#995819':'#7053a5';
-  return '<text x="'+x(i)+'" y="174" text-anchor="middle">'+stage+'</text>'+(p?'<circle cx="'+x(i)+'" cy="'+gy(p.gpmp)+'" r="4" fill="'+color+'"/><text x="'+x(i)+'" y="'+(gy(p.gpmp)-9)+'" text-anchor="middle">'+p.gpmp.toFixed(2)+'</text>':'');
- }).join('');
- const gpmpGraph='<p style="margin-top:24px">GPMP Bahasa Inggeris · Kohort SPM '+esc(cohort)+(kelas?' · '+esc(kelas):'')+'</p><svg viewBox="0 0 432 184" role="img" aria-label="Trend GPMP dari TOV hingga sasaran ETR. Nilai terperinci dalam jadual di bawah.">'+gpmpGrid+gpmpPlot+gpmpLabels+'</svg><p class="muted">Semakin rendah GPMP, semakin baik prestasi.</p>';
+  targets.forEach((p,i)=>{
+   if(!valid(p))return;
+   const v=p[key];
+   if(prev>=0&&(prev===i-1||first===4))targetLines+='<line x1="'+x(prev)+'" y1="'+y(prevValue)+'" x2="'+x(i)+'" y2="'+y(v)+'" stroke="'+targetColor+'" stroke-width="2.5" stroke-dasharray="5 4"/>';
+   const near=valid(actual[i])&&Math.abs(y(actual[i][key])-y(v))<23;
+   const below=near&&y(v)>=y(actual[i][key]);
+   targetDots+='<circle cx="'+x(i)+'" cy="'+y(v)+'" r="4" fill="'+targetColor+'"/><text x="'+x(i)+'" y="'+(y(v)+(below?15:-10))+'" text-anchor="middle" fill="'+targetColor+'">'+fmt(v,2)+'</text>';
+   prev=i;prevValue=v;
+  });
+  prev=-1;
+  actual.forEach((p,i)=>{
+   if(!valid(p))return;
+   const v=p[key];
+   if(prev===i-1&&prev>=0)actualLines+='<line x1="'+x(prev)+'" y1="'+y(actual[prev][key])+'" x2="'+x(i)+'" y2="'+y(v)+'" stroke="'+actualColor+'" stroke-width="2.5"/>';
+   const near=valid(targets[i])&&Math.abs(y(targets[i][key])-y(v))<23;
+   const below=near&&y(v)>y(targets[i][key]);
+   actualDots+='<circle cx="'+x(i)+'" cy="'+y(v)+'" r="4" fill="'+actualColor+'"/><text x="'+x(i)+'" y="'+(y(v)+(below?15:-9))+'" text-anchor="middle">'+fmt(v,digits)+'</text>';
+   prev=i;
+  });
+  const labels=stages.map((stage,i)=>'<text x="'+x(i)+'" y="174" text-anchor="middle">'+stage+'</text>').join('');
+  return '<p'+(key==='gpmp'?' style="margin-top:24px"':'')+'>'+title+' · Kohort SPM '+esc(cohort)+(kelas?' · '+esc(kelas):'')+'</p><svg viewBox="0 0 432 184" role="img" aria-label="'+title+' dari TOV hingga sasaran ETR.">'+grid+targetLines+actualLines+targetDots+actualDots+labels+'</svg><div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;font-size:12px;margin:0 0 12px"><span style="color:'+actualColor+'">━━ Pencapaian Sebenar</span>'+(hasTargets?'<span style="color:'+targetColor+'">┄┄ Sasaran (OTR / ETR)</span>':'')+'</div>';
+ }
+ const passGraph=trendGraph('rate',100,[0,25,50,75,100],'#196f72','%',1,'Peratus lulus Bahasa Inggeris');
+ const gpmpGraph=trendGraph('gpmp',9,[0,3,6,9],'#7053a5','',2,'GPMP Bahasa Inggeris')+'<p class="muted">Semakin rendah GPMP, semakin baik prestasi.</p>';
  const metrics=[['Calon hadir / calon ETR','sat',0],['Bilangan lulus','pass',0],['Peratus lulus','rate',1],['GPMP','gpmp',2],['Bilangan cemerlang (A− hingga A+)','excellent',0]];
  const current=stages.indexOf(selected),prior=summary.slice(0,Math.max(0,current)).findLastIndex(Boolean);
  const compare=current>0&&current<4&&summary[current]&&prior>=0;
  const headings=['Ukuran',...titles];
  if(compare)headings.push('Perubahan '+stages[prior]+' → '+selected);
+ const display=(p,key,digits)=>p&&Number.isFinite(p[key])?p[key].toFixed(digits)+(key==='rate'?'%':''):'—';
  const lines=metrics.map(([name,key,digits])=>{
-  const cells=[name,...summary.map(p=>p?p[key].toFixed(digits)+(key==='rate'?'%':''):'—')];
+  const cells=[name,...summary.map((p,i)=>display(p,key,i===4&&key==='rate'&&official[4]?2:digits))];
   if(compare){
    const delta=Number((summary[current][key]-summary[prior][key]).toFixed(digits));
    cells.push((delta>0?'+':'')+delta.toFixed(digits)+(key==='rate'?' mata peratus':''));
   }
   return cells;
  });
- return '<section class="taburan-gred exam-trend" lang="ms"><h2>Perbandingan Peperiksaan</h2><p>Peratus lulus Bahasa Inggeris · Kohort SPM '+esc(cohort)+(kelas?' · '+esc(kelas):'')+'</p><svg viewBox="0 0 432 184" role="img" aria-label="Trend peratus lulus dari TOV hingga sasaran ETR. Nilai terperinci dalam jadual di bawah.">'+grid+plot+labels+'</svg>'+gpmpGraph+table(headings,lines)+'<p class="muted">'+(summary[4]?'ETR dikira daripada '+summary[4].sat+' sasaran individu.':'Sasaran ETR belum direkodkan.')+' Tanda — menunjukkan tiada data.</p></section>';
+ const targetTable=hasOfficial?'<h3>Sasaran Headcount (OTR / ETR)</h3>'+table(['Ukuran','OTR 1 (AR1)','OTR 2 (AR2)','OTR 3 (AR3)','ETR'],metrics.map(([name,key,digits])=>[key==='sat'?'Bilangan calon sasaran':name,...targets.slice(1).map(p=>display(p,key,key==='rate'?2:digits))])):'';
+ return '<section class="taburan-gred exam-trend" lang="ms"><h2>Perbandingan Peperiksaan</h2>'+passGraph+gpmpGraph+table(headings,lines)+targetTable+'<p class="muted">'+(hasOfficial?'Sasaran mengikut dokumen headcount rasmi; angka asal dikekalkan. Pencapaian sebenar dikira daripada rekod peperiksaan.':summary[4]?'ETR dikira daripada '+summary[4].sat+' sasaran individu.':'Sasaran ETR belum direkodkan.')+' Tanda — menunjukkan tiada data.</p></section>';
 }
 function taburanGred(scores){
  const grades=ALL_GRADES.filter(g=>g!=='TH');
