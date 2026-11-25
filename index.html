@@ -221,6 +221,16 @@ nav button:nth-child(3):before{content:"♙"}nav button:nth-child(4):before{cont
 .murid-grade li strong,.murid-labels span:last-child{text-align:right;font-variant-numeric:tabular-nums}
 .murid-labels{background:#f5f6fa;font-size:.85em;font-weight:700}
 .exam-trend svg{display:block;width:100%;max-width:760px;max-height:300px;margin:12px auto;font:12px system-ui;fill:#33435b}.exam-trend .scroll{overflow-x:auto}.exam-trend th,.exam-trend td{white-space:nowrap}.exam-trend td:first-child,.exam-trend th:first-child{position:sticky;left:0;background:white}
+
+/* Item diagnostics: percentage bars and class heatmap */
+.ia-section{color:#263753}.ia-section .ia-bar-row{display:grid;grid-template-columns:minmax(125px,1fr) minmax(80px,2.8fr) 64px;gap:12px;align-items:center;margin:14px 0}
+.ia-bar-label{font-weight:650;line-height:1.35}.ia-bar-label small{display:block;color:#65718b;font-size:11px;font-weight:400;margin-top:3px}.ia-bar-row strong{text-align:right;font-variant-numeric:tabular-nums}
+.ia-track{height:17px;background:#edf0f6;border-radius:5px;overflow:hidden}.ia-track i{height:100%;display:block;border-radius:5px}.ia-track i.ia-low{background:#dc7777}.ia-track i.ia-mid{background:#dcb154}.ia-track i.ia-high{background:#56a68b}
+.ia-picker{display:grid;gap:6px;max-width:330px;margin:15px 0}.ia-picker select{width:100%;font-size:14px}.ia-scroll{overflow-x:auto;max-width:100%}
+.ia-heatmap,.ia-focus{border-collapse:separate;border-spacing:4px;min-width:460px;font-variant-numeric:tabular-nums}.ia-heatmap td,.ia-focus td{border:0;border-radius:5px}.ia-heatmap td,.ia-heatmap th{text-align:center}.ia-heatmap th:first-child,.ia-focus td:nth-child(2){text-align:left}.ia-heatmap th:first-child{position:sticky;left:0;background:white;z-index:2}.ia-heatmap td,.ia-focus td.ia-low,.ia-focus td.ia-mid,.ia-focus td.ia-high,.ia-focus td.ia-missing{font-weight:700}
+.ia-low{background:#f4c6c6;color:#762e35}.ia-mid{background:#fae7b4;color:#704c15}.ia-high{background:#c5e9d4;color:#155741}.ia-missing{background:#eef0f5;color:#65718b}
+.ia-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;font-size:12px;color:#51617d;margin:16px 0 4px}.ia-legend span{display:flex;align-items:center;gap:5px}.ia-legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+@media(max-width:500px){.ia-section .ia-bar-row{grid-template-columns:minmax(88px,1fr) minmax(60px,1.5fr) 55px;gap:6px;font-size:12px}.ia-track{height:13px}.ia-focus{min-width:650px}}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -743,6 +753,96 @@ function classPerformanceSelector(){
   classNames.map(name=>'<option value="'+esc(name)+'"'+(selected===name?' selected':'')+'>'+esc(name)+'</option>').join('')+
   '</select></label><p>Select an individual class to see its performance and student results, or choose All Classes.</p></div>';
 }
+
+let itemPaperSelection='';
+function selectItemPaper(paper){
+ itemPaperSelection=paper;
+ const panel=$('item-part-panel');
+ if(panel)panel.innerHTML=itemPartPanel(itemDiagnosticsCache,paper);
+}
+let itemDiagnosticsCache=null;
+const itemPaperNames={'Paper 1':'Kertas 1 · Reading','Paper 2':'Kertas 2 · Writing','Paper 3':'Kertas 3 · Speaking','Paper 4':'Kertas 4 · Listening'};
+const itemPaperShort={'Paper 1':'P1','Paper 2':'P2','Paper 3':'P3','Paper 4':'P4'};
+const itemPaperLabel=p=>itemPaperNames[p]||p;
+const itemPartLabel=p=>String(p).replace(/^Part\s+/i,'Bahagian ');
+const itemSort=(a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true});
+const itemPercent=g=>g&&g.max>0?100*g.score/g.max:null;
+const itemTone=v=>v===null?'missing':v<40?'low':v<70?'mid':'high';
+const itemFmt=v=>v===null?'—':v.toFixed(1)+'%';
+function itemAdd(map,key,r){
+ let g=map.get(key);
+ if(!g){g={score:0,max:0,names:new Set()};map.set(key,g);}
+ g.score+=num(r.Score);g.max+=num(r.Max_Score);g.names.add(String(r.Student_Name).trim().toUpperCase());
+}
+function itemBar(label,v,n){
+ return '<div class="ia-bar-row"><div class="ia-bar-label">'+esc(label)+'<small>'+n+' calon</small></div><div class="ia-track" role="img" aria-label="'+esc(label+' '+itemFmt(v))+'"><i class="ia-'+itemTone(v)+'" style="width:'+(v===null?0:v)+'%"></i></div><strong>'+itemFmt(v)+'</strong></div>';
+}
+function itemPartPanel(data,paper){
+ if(!data)return '';
+ const parts=[...data.parts.values()].filter(p=>p.paper===paper).sort((a,b)=>itemSort(a.part,b.part));
+ return parts.length?parts.map(p=>itemBar(itemPartLabel(p.part),itemPercent(p.g),p.g.names.size)).join(''):'<p class="muted">Tiada markah bahagian direkodkan untuk kertas ini.</p>';
+}
+function renderItemDiagnostics(items){
+ const valid=items.filter(r=>{
+  const score=num(r.Score),max=num(r.Max_Score);
+  return String(r.Student_Name||'').trim()&&String(r.Paper||'').trim()&&String(r.Part||'').trim()&&score!==null&&max!==null&&max>0&&score>=0&&score<=max;
+ });
+ const cohort=$('cohort').value,exam=$('exam').value;
+ const currentClass=$('classFilter').value,search=$('search').value.trim();
+ const scope=(currentClass?' · '+esc(currentClass):'')+(search?' · Carian: '+esc(search):'');
+ const studentCount=new Set(valid.map(r=>String(r.Student_Name).trim().toUpperCase())).size;
+ const classes=unique(valid.map(r=>r.Class_At_Exam||'Unassigned')).sort(itemSort);
+ const paperList=unique(valid.map(r=>r.Paper)).sort(itemSort);
+ let html='<section class="intro" lang="ms"><h2>Analisis Item · '+esc(examDisplayName(exam))+'</h2><p>Kohort SPM '+esc(cohort)+' · '+studentCount+' calon dengan markah · '+classes.length+' kelas · '+paperList.length+' kertas'+scope+'</p></section>';
+ if(!valid.length){
+  const available=unique(D.items.filter(r=>String(r.SPM_Cohort)===cohort).map(r=>r.Exam));
+  return html+'<section lang="ms"><h2>Tiada data analisis item</h2><p class="muted">'+(available.length?'Peperiksaan dengan data: '+esc(available.join(', '))+'.':'Tiada rekod analisis item bagi kohort ini.')+' Semak pilihan peperiksaan dan penapis. Jika markah telah dimasukkan, muat semula data daripada Google Sheets.</p><button onclick="showAllItemData()">Papar semua data tersedia</button></section>';
+ }
+ const paperGroups=new Map(),classPaper=new Map(),parts=new Map(),classPart=new Map();
+ const studentPapers=new Map();
+ valid.forEach(r=>{
+  const key=JSON.stringify([r.Class_At_Exam||'Unassigned',String(r.Student_Name).trim().toUpperCase(),r.Paper]);
+  if(!studentPapers.has(key))studentPapers.set(key,[]);
+  studentPapers.get(key).push(r);
+ });
+ const isOverall=r=>/^(overall|total|jumlah|keseluruhan)$/i.test(String(r.Part).trim());
+ for(const records of studentPapers.values()){
+  const detail=records.filter(r=>!isOverall(r));
+  const overall=records.find(isOverall);
+  // Prefer recorded overall for paper aggregates when available; do not add it to parts.
+  const forPaper=overall?[overall]:detail;
+  for(const r of forPaper){
+   const cls=r.Class_At_Exam||'Unassigned';
+   itemAdd(paperGroups,r.Paper,r);
+   itemAdd(classPaper,JSON.stringify([cls,r.Paper]),r);
+  }
+  for(const r of detail){
+   const cls=r.Class_At_Exam||'Unassigned',key=JSON.stringify([r.Paper,r.Part]);
+   if(!parts.has(key))parts.set(key,{paper:r.Paper,part:r.Part,g:{score:0,max:0,names:new Set()}});
+   const g=parts.get(key).g;
+   g.score+=num(r.Score);g.max+=num(r.Max_Score);g.names.add(String(r.Student_Name).trim().toUpperCase());
+   itemAdd(classPart,JSON.stringify([cls,r.Paper,r.Part]),r);
+  }
+ }
+ const availablePapers=paperList.filter(p=>paperGroups.has(p));
+ itemDiagnosticsCache={parts};
+ if(!availablePapers.includes(itemPaperSelection))itemPaperSelection=availablePapers[0]||'';
+ html+='<section class="taburan-gred ia-section" lang="ms"><h2>Analisis Mengikut Kertas</h2><p>Peratus pencapaian berdasarkan markah yang direkodkan bagi setiap kertas.</p>'+availablePapers.map(p=>{const g=paperGroups.get(p);return itemBar(itemPaperLabel(p),itemPercent(g),g.names.size)}).join('')+'<p class="muted">Peratus = jumlah markah ÷ jumlah markah maksimum yang direkodkan. Markah kosong tidak dikira; rekod Overall tidak dijumlahkan sekali lagi dengan bahagian.</p></section>';
+ html+='<section class="taburan-gred ia-section" lang="ms"><h2>Analisis Mengikut Bahagian</h2><label class="ia-picker" for="item-paper-picker">Pilih kertas<select id="item-paper-picker" onchange="selectItemPaper(this.value)">'+availablePapers.map(p=>'<option value="'+esc(p)+'"'+(p===itemPaperSelection?' selected':'')+'>'+esc(itemPaperLabel(p))+'</option>').join('')+'</select></label><div id="item-part-panel">'+itemPartPanel(itemDiagnosticsCache,itemPaperSelection)+'</div></section>';
+ const legend='<div class="ia-legend"><span><i class="ia-low"></i> Kurang 40%</span><span><i class="ia-mid"></i> 40% hingga bawah 70%</span><span><i class="ia-high"></i> 70% ke atas</span><span><i class="ia-missing"></i> Tiada data</span></div>';
+ const allPapers=unique([...Object.keys(itemPaperNames),...availablePapers]).sort(itemSort);
+ html+='<section class="taburan-gred ia-section" lang="ms"><h2>Analisis Merentas Kelas</h2><p>Bandingkan pencapaian setiap kelas bagi setiap kertas.</p><div class="ia-scroll"><table class="ia-heatmap"><thead><tr><th>Kelas</th>'+allPapers.map(p=>'<th title="'+esc(itemPaperLabel(p))+'">'+esc(itemPaperShort[p]||p)+'</th>').join('')+'</tr></thead><tbody>'+classes.map(cls=>'<tr><th scope="row">'+esc(cls==='Unassigned'?'Tiada kelas':cls)+'</th>'+allPapers.map(p=>{const g=classPaper.get(JSON.stringify([cls,p])),v=itemPercent(g);return '<td class="ia-'+itemTone(v)+'" title="'+esc(g?g.names.size+' calon':'Tiada data')+'">'+itemFmt(v)+'</td>'}).join('')+'</tr>').join('')+'</tbody></table></div>'+legend+'</section>';
+ const weakest=[...parts.values()].sort((a,b)=>itemPercent(a.g)-itemPercent(b.g)||itemSort(a.paper,b.paper)||itemSort(a.part,b.part)).slice(0,5);
+ html+='<section class="taburan-gred ia-section" lang="ms"><h2>Fokus Intervensi</h2><p>Lima bahagian dengan peratus pencapaian terendah berdasarkan data tersedia. Kelas fokus ialah kelas dengan peratus terendah bagi bahagian berkenaan.</p>';
+ if(!weakest.length)html+='<p class="muted">Tiada markah bahagian untuk menentukan fokus intervensi.</p>';
+ else html+='<div class="ia-scroll"><table class="ia-focus"><thead><tr><th>Bil.</th><th>Kertas / Bahagian</th><th>Pencapaian</th><th>Calon</th><th>Kelas fokus</th><th>Pencapaian kelas</th></tr></thead><tbody>'+weakest.map((p,i)=>{
+  const ranked=classes.map(cls=>({cls,g:classPart.get(JSON.stringify([cls,p.paper,p.part]))})).filter(x=>x.g).sort((a,b)=>itemPercent(a.g)-itemPercent(b.g)||itemSort(a.cls,b.cls));
+  const lowest=ranked.length?itemPercent(ranked[0].g):null,focus=ranked.filter(x=>Math.abs(itemPercent(x.g)-lowest)<1e-9);
+  const label=focus.map(x=>x.cls==='Unassigned'?'Tiada kelas':x.cls).join(', ');
+  return '<tr><td>'+(i+1)+'</td><td>'+esc(itemPaperLabel(p.paper)+' / '+itemPartLabel(p.part))+'</td><td class="ia-'+itemTone(itemPercent(p.g))+'">'+itemFmt(itemPercent(p.g))+'</td><td>'+p.g.names.size+'</td><td>'+esc(label||'—')+'</td><td class="ia-'+itemTone(lowest)+'">'+itemFmt(lowest)+'</td></tr>';
+ }).join('')+'</tbody></table></div>';
+ return html+'<p class="muted">Warna ialah panduan diagnostik, bukan gred peperiksaan. Saiz kumpulan dan liputan markah mungkin berbeza. Markah individu kekal tersedia di Prestasi Individu.</p></section>';
+}
 function render(){if(!D)return;updateCohortSummary();$('nav').innerHTML=[['Overview','RINGKASAN PRESTASI'],['Class performance','PRESTASI KELAS'],['Individual student','PRESTASI INDIVIDU'],['Headcount & targets','SASARAN PENCAPAIAN'],['Interventions','INTERVENSI'],['Item analysis','ANALISIS ITEM']].map(([t,label])=>'<button class="'+(t===tab?'active':'')+'" data-page="'+esc(t)+'" onclick="selectDashboardPage(this.dataset.page)">'+label+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc(examDisplayName($('exam').value))+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc(examDisplayName($('exam').value))+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
 if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Class pass rate</h2><p class="muted">Percentage of candidates with valid marks</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Pass & fail distribution</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>pass rate</small></span></div><p class="legend">● Pass '+s.pass+' &nbsp; / &nbsp; Fail '+s.fail+' · Sat '+s.sat+'</p>':'<p class="muted">No valid marks yet.</p>')+'</section></div>';html=(tab==='Class performance'?classPerformanceSelector():'')+charts+html;if(tab==='Class performance'){
  const className=$('classFilter').value;
@@ -760,62 +860,7 @@ if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(
 
 if(tab==='Headcount & targets'){let tr=D.tracker.slice(3).filter(r=>r[2]&&String(r[0])===$('cohort').value&&(!$('classFilter').value||r[1]===$('classFilter').value)&&String(r[2]).toLowerCase().includes($('search').value.trim().toLowerCase()));html='<section><h2>Individual headcount</h2><p class="muted">M = Mark · G = Grade · TH = Absent</p>'+table(['Cohort','Class','Student','TOV M','TOV G','AR1 M','AR1 G','AR2 M','AR2 G','AR3 M','AR3 G','ETR M','ETR G'],tr.map(trackerWithGrades))+'</section><section><h2>Class targets · '+esc(examDisplayName($('exam').value))+'</h2>'+table(['Year','Class','Target passes','Target pass %','Notes'],filtered(D.targets).map(r=>[r.Academic_Year,r.Class,r.Target_Passes,r['Target_Pass_%'],r.Notes]))+'</section>'}
 if(tab==='Interventions')html='<section><h2>Intervention records</h2>'+table(['Student','Class','Exam','Weak paper','Weak part','Intervention','Start','Follow-up','Status','Notes'],filtered(D.interventions).map(r=>[r.Student_Name,r.Class,r.Exam,r.Weak_Paper,r.Weak_Part,r.Intervention,r.Start_Date,r.Follow_Up_Date,r.Status,r.Notes]))+'</section>';
-if(tab==='Item analysis'){
- const items=filtered(D.items);
- const valid=items.filter(r=>{
-  const a=num(r.Score),b=num(r.Max_Score);
-  return a!==null&&b!==null&&b>0&&a>=0&&a<=b;
- });
- const students=unique(items.map(r=>r.Student_Name));
- const classes=unique(items.map(r=>r.Class_At_Exam||'Unassigned'));
- const papers=unique(items.map(r=>r.Paper));
- const aggreg={};const byClass={};
- function addTo(store,key,r){
-  let g=store[key];
-  if(!g)g=store[key]={count:0,score:0,max:0,names:new Set()};
-  g.count++;g.score+=num(r.Score);g.max+=num(r.Max_Score);g.names.add(r.Student_Name);
- }
- valid.forEach(r=>{
-  addTo(aggreg,r.Paper+' | '+r.Part,r);
-  addTo(byClass,r.Class_At_Exam+' | '+r.Paper+' | '+r.Part,r);
- });
- html='<section class="intro"><h2>Item Analysis · '+esc(examDisplayName($('exam').value))+'</h2>'+
-  '<p>SPM Cohort '+esc($('cohort').value)+' · '+students.length+' students · '+
-  valid.length+' scored parts · '+classes.length+' classes</p></section>';
- if(!items.length){
-  const available=unique(D.items.filter(r=>String(r.SPM_Cohort)===$('cohort').value).map(r=>r.Exam));
-  html+='<section><h2>No matching item-analysis scores</h2>'+
-   '<p class="muted">'+(available.length?'Available item examinations: '+esc(available.join(', '))+
-   '.':'No item-analysis records have been received from Google Sheets for this cohort.')+
-   ' Try clearing the class, form and student filters. '+
-   'If the Google Sheet has scores but this section still shows none, check that your data connection successfully loads ITEM_ANALYSIS_DATA.</p>'+
-   '<p class="muted">Feed records received: '+D.items.length+'.</p>'+
-   '<button onclick="showAllItemData()">Show all available item scores</button></section>';
- }else{
-  html+='<div class="cards">'+card('Students with item marks',students.length)+
-    card('Parts scored',valid.length)+card('Classes with data',classes.length)+
-    card('Papers recorded',papers.length)+'</div>';
-  const aggregateRows=Object.entries(aggreg).sort((a,b)=>a[1].score/a[1].max-b[1].score/b[1].max).map(([k,g])=>
-   [k.replace(' | ',' / '),g.names.size,g.score+' / '+g.max,(100*g.score/g.max).toFixed(1)+'%']);
-  html+='<section><h2>Paper & Part Strengths · Weakest First</h2>'+
-   '<p class="muted">Weighted accuracy uses actual recorded marks, not blank marks.</p>'+
-   table(['Paper / Part','Students','Total / Maximum','Accuracy'],aggregateRows)+'</section>';
-  const alias={'CEMERLANG':'4C — CEMERLANG','FITRAH':'4F — FITRAH','GEMILANG':'4G — GEMILANG'};
-  const groupedRows=Object.entries(byClass).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(([key,g])=>{
-   const parts=key.split(' | '),label=($('cohort').value==='2027'&&$('exam').value==='AR1'&&alias[parts[0]])||parts[0];
-   return [label,parts[1],parts[2],g.names.size,g.score+' / '+g.max,(100*g.score/g.max).toFixed(1)+'%'];
-  });
-  html+='<section><h2>Class-by-Class Part Analysis</h2>'+
-   '<p class="muted">Compare accuracy for each Paper and Part across your classes.</p>'+
-   table(['Class','Paper','Part','Students','Total / Maximum','Accuracy'],groupedRows)+'</section>';
-  html+='<section><h2>Individual Item Scores</h2>'+
-   '<p class="muted">Use the filters above to narrow by class or student. Blank papers remain blank.</p>'+
-   table(['Student','Class','Paper','Part','Score','Maximum','Accuracy','Notes'],
-    items.map(r=>[r.Student_Name,r.Class_At_Exam,r.Paper,r.Part,r.Score,r.Max_Score,
-    r['Accuracy_%']||(num(r.Score)!==null&&num(r.Max_Score)>0?(100*num(r.Score)/num(r.Max_Score)).toFixed(1)+'%':''),
-    r.Weakness_Notes]))+'</section>';
- }
-}
+if(tab==='Item analysis'){html=renderItemDiagnostics(filtered(D.items));}
 $('content').innerHTML=html}
 $('exam').onchange=()=>{selectedStudentFocus='';setClasses();render()};$('classFilter').onchange=()=>{selectedStudentFocus='';render()};$('search').oninput=()=>{updateStudentLookup();if(tab!=='Overview'&&tab!=='Class performance')render()};if(urlSettings.get('setup')==='1')showConnectionSetup();
 const gradePalette=['#08634c','#14823b','#22bf60','#0d7691','#397ff2','#6262ed','#a652ef','#e5ab08','#ef7516','#ef4444'];
