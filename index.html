@@ -233,6 +233,9 @@ nav button:nth-child(3):before{content:"♙"}nav button:nth-child(4):before{cont
 @media(max-width:500px){.ia-section .ia-bar-row{grid-template-columns:minmax(88px,1fr) minmax(60px,1.5fr) 55px;gap:6px;font-size:12px}.ia-track{height:13px}.ia-focus{min-width:650px}}
 
 .ia-focus-scroll{max-height:360px;overflow:auto;scrollbar-gutter:stable;border:1px solid #e5e0f4;border-radius:8px}.ia-focus-scroll .ia-focus{margin:0}.ia-focus-scroll .ia-focus thead th{position:sticky;top:0;z-index:3;background:#f3f0fa}.ia-focus-scroll:focus-visible{outline:2px solid #8072bb;outline-offset:2px}.ia-focus-counts{justify-content:flex-start;margin-bottom:10px}
+
+/* Intervention dashboard */
+.iv-section .iv-groups{display:grid;gap:10px}.iv-group{border:1px solid #e1e4ef;border-radius:9px;overflow:hidden}.iv-group summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;padding:13px 16px;list-style:none}.iv-group summary::-webkit-details-marker{display:none}.iv-group summary:before{content:'▸';font-weight:700}.iv-group[open] summary:before{content:'▾'}.iv-group summary span{flex:1}.iv-group summary b{display:block}.iv-group summary small{display:block;margin-top:3px;line-height:1.4}.iv-group summary strong{font-size:23px;font-variant-numeric:tabular-nums}.iv-group summary:focus-visible,.iv-scroll:focus-visible{outline:2px solid #8072bb;outline-offset:-2px}.iv-low{background:#f4c6c6;color:#762e35}.iv-mid{background:#fae7b4;color:#704c15}.iv-high{background:#c5e9d4;color:#155741}.iv-neutral{background:#eef0f5;color:#465571}.iv-blue{background:#dde8f9;color:#344d86}.iv-scroll{max-height:360px;overflow:auto;scrollbar-gutter:stable}.iv-scroll table{min-width:560px}.iv-scroll th{position:sticky;top:0;z-index:2;background:#f3f0fa}.iv-scroll td{vertical-align:top}.iv-scroll td:first-child{white-space:normal;min-width:180px}.iv-group .muted{padding:0 14px}.iv-negative{color:#a0323e;font-weight:700}.iv-positive{color:#15735b;font-weight:700}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -848,6 +851,105 @@ function renderItemDiagnostics(items){
  }).join('')+'</tbody></table></div><p class="muted">Tatal ke bawah untuk melihat semua kelas dan bahagian yang memerlukan perhatian.</p>';
  return html+'<p class="muted">Warna ialah panduan diagnostik, bukan gred peperiksaan. Saiz kumpulan dan liputan markah mungkin berbeza. Markah individu kekal tersedia di Prestasi Individu.</p></section>';
 }
+
+let interventionStudentLinks=[];
+function openInterventionStudent(index){
+ const r=interventionStudentLinks[Number(index)];
+ if(!r)return;
+ const person=individualStudents().find(p=>p.cohort===String(r.SPM_Cohort)&&p.key===studentIdentity(r));
+ if(!person)return;
+ individualSelection=person;individualQuery='';individualClassKey='';individualBrowseStudent='';
+ selectDashboardPage('Individual student');
+ const report=$('individual-report');if(report)report.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function chooseInterventionClass(value){
+ $('classFilter').value=[...$('classFilter').options].some(o=>o.value===value)?value:'';
+ render();
+}
+function interventionTable(head,rows){
+ if(!rows.length)return '<p class="muted">Tiada murid dalam kumpulan ini.</p>';
+ return '<div class="iv-scroll" tabindex="0" role="region" aria-label="Senarai boleh ditatal"><table><thead><tr>'+head.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(cell=>'<td>'+cell+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+}
+function renderIntervention(){
+ const cohort=$('cohort').value,exam=$('exam').value,form=$('form').value,cls=$('classFilter').value,q=$('search').value.trim().toLowerCase();
+ const pass=Number(D.passMark),key=r=>String(r.Student_Name||'').trim().toUpperCase();
+ const cohortRows=D.results.filter(r=>String(r.SPM_Cohort)===cohort);
+ const examRows=cohortRows.filter(r=>r.Exam===exam&&(!form||r.Form===form));
+ const classNames=unique(examRows.map(r=>r.Class_At_Exam||'Unassigned')).sort(itemSort);
+ const current=examRows.filter(r=>key(r)&&(!cls||(r.Class_At_Exam||'Unassigned')===cls)&&(!q||key(r).toLowerCase().includes(q)));
+ const scored=current.filter(r=>mark(r)!==null);
+ const labelClass=r=>r.Class_At_Exam==='Unassigned'?'Tiada kelas':r.Class_At_Exam||'—';
+ const sortMark=(a,b)=>mark(a)-mark(b)||itemSort(a.Student_Name,b.Student_Name);
+ const priorExam=examOrder.slice(0,Math.max(0,examOrder.indexOf(exam))).reverse().find(e=>cohortRows.some(r=>r.Exam===e&&mark(r)!==null));
+ const prior=new Map(cohortRows.filter(r=>r.Exam===priorExam&&key(r)&&mark(r)!==null).map(r=>[key(r),r]));
+ const matched=scored.filter(r=>prior.has(key(r))).map(r=>({r,before:mark(prior.get(key(r))),after:mark(r)})).map(p=>({...p,delta:p.after-p.before}));
+ interventionStudentLinks=scored;
+ const indexes=new Map(scored.map((r,i)=>[r,i]));
+ const link=r=>'<a class="class-student-link" href="#individual-report" onclick="openInterventionStudent('+indexes.get(r)+');return false;">'+esc(r.Student_Name)+'</a>';
+ const fmt=v=>Number.isInteger(v)?String(v):String(Number(v.toFixed(2)));
+ const deltaText=v=>'<span class="'+(v<0?'iv-negative':v>0?'iv-positive':'')+'">'+esc((v>0?'+':'')+fmt(v))+'</span>';
+ // Aggregate valid recorded paper scores; prefer Overall when present, never double count.
+ const itemGroups=new Map();
+ for(const r of D.items){
+  if(String(r.SPM_Cohort)!==cohort||r.Exam!==exam||(!key(r))||!r.Paper)continue;
+  const a=num(r.Score),b=num(r.Max_Score);
+  if(a===null||b===null||b<=0||a<0||a>b)continue;
+  const k=JSON.stringify([key(r),r.Paper]);if(!itemGroups.has(k))itemGroups.set(k,[]);itemGroups.get(k).push(r);
+ }
+ const weak=new Map();
+ for(const [k,records] of itemGroups){
+  const [student,paper]=JSON.parse(k);
+  const overall=records.find(r=>/^(overall|total|jumlah|keseluruhan)$/i.test(String(r.Part).trim()));
+  const source=overall?[overall]:records;
+  const pct=100*source.reduce((sum,r)=>sum+num(r.Score),0)/source.reduce((sum,r)=>sum+num(r.Max_Score),0);
+  const old=weak.get(student);
+  if(!old||pct<old.pct||(pct===old.pct&&itemSort(paper,old.paper)<0))weak.set(student,{paper,pct});
+ }
+ const weakText=r=>{const w=weak.get(key(r));return w?esc(itemPaperShort[w.paper]||w.paper)+' · '+itemFmt(w.pct):'—';};
+ const groups=[
+  {name:'Kritikal',range:'0 hingga bawah 30',desc:'Bimbingan intensif',tone:'low',test:m=>m<30},
+  {name:'Galus',range:'30 hingga bawah 40',desc:'Bimbingan untuk lulus',tone:'mid',test:m=>m>=30&&m<40},
+  {name:'Pengukuhan',range:'40 hingga bawah 60',desc:'Pengukuhan kemahiran asas',tone:'neutral',test:m=>m>=40&&m<60},
+  {name:'Potensi Cemerlang',range:'60 hingga bawah 70',desc:'Bimbingan menuju gred A-',tone:'blue',test:m=>m>=60&&m<70},
+  {name:'Cemerlang',range:'70–100',desc:'Pengekalan prestasi',tone:'high',test:m=>m>=70}
+ ];
+ let html='<section class="intro" lang="ms"><h2>Intervensi · '+esc(examDisplayName(exam))+'</h2><p>Kohort SPM '+esc(cohort)+' · '+scored.length+' calon dengan markah · '+(current.length-scored.length)+' tanpa markah sah / tidak hadir</p></section>';
+ html+='<section class="taburan-gred iv-section" lang="ms"><h2>Kumpulan Sasaran</h2><label class="ia-picker" for="iv-class">Pilih kelas<select id="iv-class" onchange="chooseInterventionClass(this.value)"><option value="">Semua kelas</option>'+classNames.map(c=>'<option value="'+esc(c)+'"'+(c===cls?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></label><p>Klik kumpulan untuk melihat senarai murid, markah dan kertas dengan pencapaian terendah (jika tersedia).</p><div class="iv-groups">';
+ for(const g of groups){
+  const members=scored.filter(r=>g.test(mark(r))).sort(sortMark);
+  html+='<details class="iv-group"><summary class="iv-'+g.tone+'"><span><b>'+g.name+'</b><small>'+g.range+' markah · '+g.desc+'</small></span><strong>'+members.length+'</strong></summary>'+interventionTable(['Murid','Kelas','Markah','Gred','Kertas terendah'],members.map(r=>[link(r),esc(labelClass(r)),fmt(mark(r)),esc(gradeFor(mark(r))),weakText(r)]))+'</details>';
+ }
+ html+='</div><p class="muted">Kumpulan sasaran ialah kategori intervensi, bukan gred rasmi. Hanya calon dengan markah sah dikategorikan. Tanda — bermaksud tiada data item.</p></section>';
+ const risk=matched.map(p=>{const tags=[];if(p.before>=pass&&p.after<pass)tags.push('Lulus → gagal');if(p.before<pass&&p.after<pass)tags.push('Kekal gagal');if(p.delta<=-10)tags.push('Merosot ≥10 markah');return {...p,tags};}).filter(p=>p.tags.length).sort((a,b)=>Number(b.before>=pass&&b.after<pass)-Number(a.before>=pass&&a.after<pass)||a.delta-b.delta||a.after-b.after||itemSort(a.r.Student_Name,b.r.Student_Name));
+ const comparisonNote=priorExam?esc(examDisplayName(priorExam))+' → '+esc(examDisplayName(exam))+' · '+matched.length+' daripada '+scored.length+' calon mempunyai markah sah dalam kedua-dua peperiksaan.':'Tiada peperiksaan terdahulu dengan markah sah bagi kohort ini.';
+ html+='<section class="taburan-gred iv-section" lang="ms"><h2>Murid Berisiko</h2><p>'+comparisonNote+'</p><p>Senarai murid yang bertukar daripada lulus kepada gagal, kekal gagal, atau mengalami penurunan sekurang-kurangnya 10 markah.</p>';
+ if(!priorExam||!matched.length)html+='<p class="muted">Data perbandingan belum mencukupi.</p>';
+ else if(!risk.length)html+='<p class="muted">Tiada murid memenuhi kriteria risiko ini.</p>';
+ else html+=interventionTable(['Murid','Kelas',priorExam,exam,'Perubahan','Kriteria risiko'],risk.map(p=>[link(p.r),esc(labelClass(p.r)),fmt(p.before),fmt(p.after),deltaText(p.delta),esc(p.tags.join(' · '))]));
+ html+='</section>';
+ const transitions=[
+  {name:'Kekal lulus',route:'LULUS → LULUS',tone:'high',test:p=>p.before>=pass&&p.after>=pass},
+  {name:'Meningkat kepada lulus',route:'GAGAL → LULUS',tone:'high',test:p=>p.before<pass&&p.after>=pass},
+  {name:'Merosot kepada gagal',route:'LULUS → GAGAL',tone:'low',test:p=>p.before>=pass&&p.after<pass},
+  {name:'Kekal gagal',route:'GAGAL → GAGAL',tone:'mid',test:p=>p.before<pass&&p.after<pass}
+ ];
+ html+='<section class="taburan-gred iv-section" lang="ms"><h2>Analisis Peralihan Prestasi</h2><p>'+comparisonNote+'</p>';
+ if(!matched.length)html+='<p class="muted">Peralihan tidak dapat dinilai tanpa markah sah bagi kedua-dua peperiksaan.</p>';
+ else {
+  html+='<div class="iv-groups">';
+  for(const t of transitions){
+   const people=matched.filter(t.test).sort((a,b)=>a.after-b.after||itemSort(a.r.Student_Name,b.r.Student_Name));
+   html+='<details class="iv-group"><summary class="iv-'+t.tone+'"><span><b>'+t.route+'</b><small>'+t.name+'</small></span><strong>'+people.length+'</strong></summary>'+interventionTable(['Murid','Kelas',priorExam,exam,'Perubahan'],people.map(p=>[link(p.r),esc(labelClass(p.r)),fmt(p.before),fmt(p.after),deltaText(p.delta)]))+'</details>';
+  }
+  html+='</div><p class="muted">'+(scored.length-matched.length)+' calon dengan markah semasa tidak mempunyai markah sah dalam peperiksaan perbandingan; mereka tidak dikira sebagai gagal atau dalam peralihan.</p>';
+ }
+ html+='</section>';
+ const records=D.interventions.filter(r=>String(r.SPM_Cohort)===cohort&&(!cls||String(r.Class||'')===cls)&&(!q||key(r).toLowerCase().includes(q)));
+ html+='<section class="taburan-gred iv-section" lang="ms"><h2>Rekod dan Pemantauan Intervensi</h2><p>Rekod program bagi kohort ini merentas peperiksaan. Kemaskini melalui tab INTERVENTION dalam Google Sheets.</p>';
+ if(!records.length)html+='<p class="muted">Tiada rekod intervensi dimasukkan buat masa ini.</p>';
+ else html+=interventionTable(['Murid / kumpulan','Kelas','Peperiksaan','Kertas / Bahagian','Intervensi','Tarikh mula','Tarikh susulan','Status','Catatan'],records.map(r=>[r.Student_Name||'—',r.Class,r.Exam,[r.Weak_Paper,r.Weak_Part].filter(Boolean).join(' / '),r.Intervention,r.Start_Date,r.Follow_Up_Date,r.Status,r.Notes].map(x=>esc(x||'—'))));
+ return html+'</section>';
+}
 function render(){if(!D)return;updateCohortSummary();$('nav').innerHTML=[['Overview','RINGKASAN PRESTASI'],['Class performance','PRESTASI KELAS'],['Individual student','PRESTASI INDIVIDU'],['Interventions','INTERVENSI'],['Item analysis','ANALISIS ITEM']].map(([t,label])=>'<button class="'+(t===tab?'active':'')+'" data-page="'+esc(t)+'" onclick="selectDashboardPage(this.dataset.page)">'+label+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Your cohort, at a glance</h2><p>SPM '+esc($('cohort').value)+' · '+esc(examDisplayName($('exam').value))+' · Evidence for your next teaching decision</p></section><div class="cards">'+card('Student exam records',s.count)+card('Sat / valid marks',s.sat)+card('Pass',s.pass)+card('Fail',s.fail)+card('Missing / absent',s.missing)+card('Pass rate · of sat',s.rate===null?'—':s.rate+'%')+card('Average mark',s.avg)+card('Classes',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Class performance · '+esc(examDisplayName($('exam').value))+'</h2><p class="muted">Pass rate = passes ÷ students with valid marks. Blank marks are excluded, not counted as zero.</p>'+table(['Class','Records','Sat','Pass','Fail','Missing / absent','Pass %','Average'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Exam progress</h2><p class="muted">Uses class at each exam; students may move classes between examinations.</p>'+table(['Exam','Sat','Pass %','Average'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
 if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Class pass rate</h2><p class="muted">Percentage of candidates with valid marks</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Pass & fail distribution</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>pass rate</small></span></div><p class="legend">● Pass '+s.pass+' &nbsp; / &nbsp; Fail '+s.fail+' · Sat '+s.sat+'</p>':'<p class="muted">No valid marks yet.</p>')+'</section></div>';html=(tab==='Class performance'?classPerformanceSelector():'')+charts+html;if(tab==='Class performance'){
  const className=$('classFilter').value;
@@ -864,7 +966,7 @@ if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(
 }}
 
 if(tab==='Headcount & targets'){let tr=D.tracker.slice(3).filter(r=>r[2]&&String(r[0])===$('cohort').value&&(!$('classFilter').value||r[1]===$('classFilter').value)&&String(r[2]).toLowerCase().includes($('search').value.trim().toLowerCase()));html='<section><h2>Individual headcount</h2><p class="muted">M = Mark · G = Grade · TH = Absent</p>'+table(['Cohort','Class','Student','TOV M','TOV G','AR1 M','AR1 G','AR2 M','AR2 G','AR3 M','AR3 G','ETR M','ETR G'],tr.map(trackerWithGrades))+'</section><section><h2>Class targets · '+esc(examDisplayName($('exam').value))+'</h2>'+table(['Year','Class','Target passes','Target pass %','Notes'],filtered(D.targets).map(r=>[r.Academic_Year,r.Class,r.Target_Passes,r['Target_Pass_%'],r.Notes]))+'</section>'}
-if(tab==='Interventions')html='<section><h2>Intervention records</h2>'+table(['Student','Class','Exam','Weak paper','Weak part','Intervention','Start','Follow-up','Status','Notes'],filtered(D.interventions).map(r=>[r.Student_Name,r.Class,r.Exam,r.Weak_Paper,r.Weak_Part,r.Intervention,r.Start_Date,r.Follow_Up_Date,r.Status,r.Notes]))+'</section>';
+if(tab==='Interventions')html=renderIntervention();
 if(tab==='Item analysis'){html=renderItemDiagnostics(filtered(D.items));}
 $('content').innerHTML=html}
 $('exam').onchange=()=>{selectedStudentFocus='';setClasses();render()};$('classFilter').onchange=()=>{selectedStudentFocus='';render()};$('search').oninput=()=>{updateStudentLookup();if(tab!=='Overview'&&tab!=='Class performance')render()};if(urlSettings.get('setup')==='1')showConnectionSetup();
