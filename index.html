@@ -195,6 +195,18 @@ nav button:nth-child(3):before{content:"♙"}nav button:nth-child(4):before{cont
 .exam-summary .card small{color:#586580;margin-top:4px}
 @media(max-width:900px){.cards.exam-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.cards.exam-summary{grid-template-columns:1fr}}
+
+.taburan-gred{margin:16px 0;padding:20px}
+.taburan-gred h2{border-left:4px solid #f59e0b;padding-left:9px}
+.taburan-gred p{color:#586580}
+.tg-plot{height:clamp(155px,24vw,250px);position:relative;margin:34px 2px 31px 34px;border-left:1px solid #dbe2eb}
+.tg-tick{position:absolute;width:100%;border-top:1px solid #e6ebf3}
+.tg-tick span{position:absolute;right:calc(100% + 6px);transform:translateY(-50%);font-size:12px;color:#586580}
+.tg-bars{position:absolute;inset:0;display:grid;grid-template-columns:repeat(10,minmax(0,1fr))}
+.tg-col{position:relative;display:flex;align-items:flex-end;justify-content:center}
+.tg-bar{position:relative;width:62%;max-width:52px;border-radius:5px 5px 0 0}
+.tg-bar b,.tg-col>span{position:absolute;left:50%;transform:translateX(-50%);font-size:12px;white-space:nowrap;color:#263753}
+.tg-bar b{bottom:100%}.tg-col>span{top:calc(100% + 6px);font-weight:700}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -788,6 +800,24 @@ if(tab==='Item analysis'){
 }
 $('content').innerHTML=html}
 $('exam').onchange=()=>{selectedStudentFocus='';setClasses();render()};$('classFilter').onchange=()=>{selectedStudentFocus='';render()};$('search').oninput=()=>{updateStudentLookup();if(tab!=='Overview'&&tab!=='Class performance')render()};if(urlSettings.get('setup')==='1')showConnectionSetup();
+function taburanGred(scores){
+ const grades=ALL_GRADES.filter(g=>g!=='TH');
+ const counts=Object.fromEntries(grades.map(g=>[g,0]));
+ scores.forEach(score=>counts[gradeFor(score)]++);
+ if(!scores.length)return '<section class="taburan-gred"><h2>Taburan Gred</h2><p>Tiada markah bagi pilihan ini.</p></section>';
+ const colors=['#08634c','#14823b','#22bf60','#0d7691','#397ff2','#6262ed','#a652ef','#e5ab08','#ef7516','#ef4444'];
+ const peak=Math.max(...Object.values(counts));
+ const unit=10**Math.floor(Math.log10(Math.max(1,peak/6)));
+ const step=([1,2,5,10].find(n=>n*unit>=peak/6)||10)*unit;
+ const ceiling=Math.ceil(peak/step)*step;
+ const modes=grades.filter(g=>counts[g]===peak).map(g=>g==='G'?'G (Gagal)':g);
+ const ticks=[];
+ for(let value=0;value<=ceiling;value+=step){
+  ticks.push('<div class="tg-tick" style="bottom:'+100*value/ceiling+'%"><span>'+value+'</span></div>');
+ }
+ const bars=grades.map((g,i)=>'<div class="tg-col"><div class="tg-bar" style="height:'+100*counts[g]/ceiling+'%;background:'+colors[i]+'"><b>'+counts[g]+'</b></div><span>'+g+'</span></div>');
+ return '<section class="taburan-gred" lang="ms"><h2>Taburan Gred</h2><p>Bahasa Inggeris · '+scores.length+' calon. Gred dominan: '+modes.join(', ')+'.</p><div class="tg-plot" role="img" aria-label="Bilangan calon mengikut gred: '+grades.map(g=>g+' = '+counts[g]).join(', ')+'">'+ticks.join('')+'<div class="tg-bars">'+bars.join('')+'</div></div></section>';
+}
 const originalRender=render;
 render=function(){
  originalRender();
@@ -810,7 +840,7 @@ render=function(){
  overviewCard('% Lulus (A+–E)',percentage(s.pass),s.pass+' of '+s.sat+' candidates')+
  overviewCard('% Cemerlang (A+–A−)',percentage(excellentCount),excellentCount+' candidates · '+excellentGrades)+
  overviewCard('% Gred G (Gagal)',percentage(s.fail),s.fail+' candidates')+
- overviewCard('Purata markah',s.avg,s.sat?'Grade '+gradeFor(Number(s.avg)):'')+'</div>'+
+ overviewCard('Purata markah',s.avg,s.sat?'Grade '+gradeFor(Number(s.avg)):'')+'</div>'+taburanGred(scores)+
  '<section><button class="section-link" onclick="selectDashboardPage(\'Item analysis\')">View analysis →</button><h2>Areas to Focus</h2>'+(focus.length?focus.map(p=>'<div class="focus-row"><span>'+esc(p.label)+'</span><b>'+p.value.toFixed(1)+'%</b></div>').join(''):'<p class="muted">Add paper or part scores to see which areas need the most support.</p>')+'<p class="muted">Papers ordered from lowest recorded accuracy.</p></section>';
 };
 
