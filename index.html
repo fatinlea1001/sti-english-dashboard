@@ -207,6 +207,8 @@ nav button:nth-child(3):before{content:"♙"}nav button:nth-child(4):before{cont
 .tg-bar{position:relative;width:62%;max-width:52px;border-radius:5px 5px 0 0}
 .tg-bar b,.tg-col>span{position:absolute;left:50%;transform:translateX(-50%);font-size:12px;white-space:nowrap;color:#263753}
 .tg-bar b{bottom:100%}.tg-col>span{top:calc(100% + 6px);font-weight:700}
+
+.kelas-scroll{overflow-x:auto;max-width:100%}.kelas-chart{display:flex;align-items:flex-start;padding:8px 0}.kelas-axis,.kelas-stack{height:228px}.kelas-axis{display:flex;flex-direction:column;justify-content:space-between;text-align:right;width:43px;padding-right:5px;box-sizing:border-box;font-size:11px;color:#586580}.kelas-column{flex:1;min-width:0;text-align:center}.kelas-stack{display:flex;flex-direction:column-reverse;align-items:center;background:repeating-linear-gradient(to top,#e6ebf3 0 1px,transparent 1px 20%)}.kelas-stack>div{width:74%;display:grid;place-items:center}.kelas-stack span{background:#ffffffec;color:#172536;border-radius:3px;padding:0 2px;font-size:11px;font-weight:700}.kelas-column small{display:block;margin:7px 2px;font-size:11px}.kelas-legend{display:flex;flex-wrap:wrap;gap:8px 14px;justify-content:center}.kelas-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px}.kelas-table{width:100%;min-width:690px}.kelas-table th,.kelas-table td{text-align:center;white-space:nowrap}.kelas-table th:first-child{text-align:left;position:sticky;left:0;background:white}.kelas-table tfoot{font-weight:700}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -804,12 +806,13 @@ if(tab==='Item analysis'){
 }
 $('content').innerHTML=html}
 $('exam').onchange=()=>{selectedStudentFocus='';setClasses();render()};$('classFilter').onchange=()=>{selectedStudentFocus='';render()};$('search').oninput=()=>{updateStudentLookup();if(tab!=='Overview'&&tab!=='Class performance')render()};if(urlSettings.get('setup')==='1')showConnectionSetup();
+const gradePalette=['#08634c','#14823b','#22bf60','#0d7691','#397ff2','#6262ed','#a652ef','#e5ab08','#ef7516','#ef4444'];
 function taburanGred(scores){
  const grades=ALL_GRADES.filter(g=>g!=='TH');
  const counts=Object.fromEntries(grades.map(g=>[g,0]));
  scores.forEach(score=>counts[gradeFor(score)]++);
  if(!scores.length)return '<section class="taburan-gred"><h2>Taburan Gred</h2><p>Tiada markah bagi pilihan ini.</p></section>';
- const colors=['#08634c','#14823b','#22bf60','#0d7691','#397ff2','#6262ed','#a652ef','#e5ab08','#ef7516','#ef4444'];
+ const colors=gradePalette;
  const peak=Math.max(...Object.values(counts));
  const unit=10**Math.floor(Math.log10(Math.max(1,peak/6)));
  const step=([1,2,5,10].find(n=>n*unit>=peak/6)||10)*unit;
@@ -821,6 +824,44 @@ function taburanGred(scores){
  }
  const bars=grades.map((g,i)=>'<div class="tg-col"><div class="tg-bar" style="height:'+100*counts[g]/ceiling+'%;background:'+colors[i]+'"><b>'+counts[g]+'</b></div><span>'+g+'</span></div>');
  return '<section class="taburan-gred" lang="ms"><h2>Taburan Gred</h2><p>Bahasa Inggeris · '+scores.length+' calon. Gred dominan: '+modes.join(', ')+'.</p><div class="tg-plot" role="img" aria-label="Bilangan calon mengikut gred: '+grades.map(g=>g+' = '+counts[g]).join(', ')+'">'+ticks.join('')+'<div class="tg-bars">'+bars.join('')+'</div></div></section>';
+}
+function analisisGredKelas(rows){
+ const grades=ALL_GRADES.filter(g=>g!=='TH');
+ const groups=new Map();
+ const total=Array(grades.length).fill(0);
+ for(const row of rows){
+  const name=String(row.Class_At_Exam||'Tanpa kelas');
+  if(!groups.has(name))groups.set(name,Array(grades.length).fill(0));
+  const value=mark(row);
+  if(value===null)continue;
+  const index=grades.indexOf(gradeFor(value));
+  if(index<0)continue;
+  groups.get(name)[index]++;
+  total[index]++;
+ }
+ const sum=counts=>counts.reduce((a,b)=>a+b,0);
+ const number=String($('form').value).match(/\d+/)?.[0]||'';
+ const label=name=>/^\d/.test(name)||name==='Tanpa kelas'?name:(number+' '+name).trim();
+ const classes=[...groups].sort(([a],[b])=>a.localeCompare(b,'ms',{numeric:true}));
+ const legend=grades.map((g,i)=>'<span><i style="background:'+gradePalette[i]+'"></i>'+g+'</span>').join('');
+ const columns=classes.map(([name,counts])=>{
+  const sat=sum(counts);
+  const segments=counts.map((count,i)=>{
+   if(!count)return '';
+   const pct=count/sat*100;
+   const detail=esc(label(name))+' · '+grades[i]+' · '+count+' calon ('+pct.toFixed(1)+'%)';
+   return '<div title="'+detail+'" style="height:'+pct+'%;background:'+gradePalette[i]+'">'+(pct>=10?'<span>'+Math.round(pct)+'%</span>':'')+'</div>';
+  }).join('');
+  return '<div class="kelas-column"><div class="kelas-stack">'+segments+'</div><small>'+esc(label(name))+'</small></div>';
+ }).join('');
+ const chart='<section class="taburan-gred" lang="ms"><h2>Taburan Gred Merentas Kelas</h2><p>Peratus calon bagi setiap gred mengikut kelas.</p>'+
+ (sum(total)?'<div class="kelas-scroll"><div class="kelas-chart" style="min-width:'+Math.max(240,classes.length*76+46)+'px"><div class="kelas-axis">'+[100,80,60,40,20,0].map(v=>'<span>'+v+'%</span>').join('')+'</div>'+columns+'</div></div><div class="kelas-legend">'+legend+'</div>':'<p>Tiada markah bagi pilihan ini.</p>')+'</section>';
+ function tableRow(name,counts){
+  const sat=sum(counts);
+  const gpmp=sat?(counts.reduce((points,count,i)=>points+count*i,0)/sat).toFixed(2):'—';
+  return '<tr><th scope="row">'+esc(name)+'</th>'+counts.map(n=>'<td>'+n+'</td>').join('')+'<td>'+sat+'</td><td>'+gpmp+'</td></tr>';
+ }
+ return chart+'<section class="taburan-gred" lang="ms"><h2>Jadual Analisis Gred</h2><p>Bilangan calon bagi setiap gred. GPMP ialah jumlah mata gred (A+ = 0 hingga G = 9) dibahagi dengan bilangan calon yang menduduki peperiksaan.</p><div class="kelas-scroll"><table class="kelas-table"><thead><tr><th scope="col">Kelas</th>'+grades.map((g,i)=>'<th scope="col" style="border-top:5px solid '+gradePalette[i]+'">'+g+'</th>').join('')+'<th scope="col">Calon</th><th scope="col">GPMP</th></tr></thead><tbody>'+classes.map(([name,counts])=>tableRow(label(name),counts)).join('')+'</tbody><tfoot>'+tableRow('Jumlah',total)+'</tfoot></table></div></section>';
 }
 const originalRender=render;
 render=function(){
@@ -844,7 +885,7 @@ render=function(){
  overviewCard('% Lulus (A+–E)',percentage(s.pass),s.pass+' of '+s.sat+' candidates')+
  overviewCard('% Cemerlang (A+–A−)',percentage(excellentCount),excellentCount+' candidates · '+excellentGrades)+
  overviewCard('% Gred G (Gagal)',percentage(s.fail),s.fail+' candidates')+
- overviewCard('Purata markah',s.avg,s.sat?'Grade '+gradeFor(Number(s.avg)):'')+'</div>'+taburanGred(scores)+
+ overviewCard('Purata markah',s.avg,s.sat?'Grade '+gradeFor(Number(s.avg)):'')+'</div>'+taburanGred(scores)+analisisGredKelas(rows)+
  '<section><button class="section-link" onclick="selectDashboardPage(\'Item analysis\')">View analysis →</button><h2>Areas to Focus</h2>'+(focus.length?focus.map(p=>'<div class="focus-row"><span>'+esc(p.label)+'</span><b>'+p.value.toFixed(1)+'%</b></div>').join(''):'<p class="muted">Add paper or part scores to see which areas need the most support.</p>')+'<p class="muted">Papers ordered from lowest recorded accuracy.</p></section>';
 };
 
