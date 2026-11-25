@@ -185,6 +185,16 @@ nav button:nth-child(3):before{content:"♙"}nav button:nth-child(4):before{cont
 .student-progress{overflow-x:auto}.student-progress svg{display:block;width:100%;min-width:560px;height:auto}
 /* Keep expanded examination labels readable on narrow screens. */
 .filters .cohort-trigger>span:first-child{white-space:normal;overflow-wrap:break-word}
+
+.cards.exam-summary{grid-template-columns:repeat(4,minmax(0,1fr))}
+.exam-summary .card{display:flex;flex-direction:column;align-items:flex-start;padding:16px;background:white;border:1px solid #dde4ed;border-left:4px solid #193650;border-radius:14px}
+.exam-summary .card:before{content:none}
+.exam-summary .card:nth-child(3),.exam-summary .card:nth-child(4){border-left-color:#18834d}
+.exam-summary .card:nth-child(5){border-left-color:#d24242}
+.exam-summary .card span{font-weight:700;text-transform:uppercase}
+.exam-summary .card small{color:#586580;margin-top:4px}
+@media(max-width:900px){.cards.exam-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.cards.exam-summary{grid-template-columns:1fr}}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -787,8 +797,11 @@ render=function(){
  const lowest=scores.length?Math.min(...scores):null;
  const gradePoints={'A+':0,'A':1,'A-':2,'B+':3,'B':4,'C+':5,'C':6,'D':7,'E':8,'G':9};
  const gpmp=scores.length?(scores.reduce((sum,m)=>sum+gradePoints[gradeFor(m)],0)/scores.length).toFixed(2):'—';
- const bands=[{label:'Excellent (80–100)',min:80,color:'#c3eee2'},{label:'Good (60–79)',min:60,color:'#cbe4ff'},{label:'Average (40–59)',min:40,color:'#ffe7c8'},{label:'Below pass mark (0–39)',min:0,color:'#ffd4e4'}];
+ const bands=[{label:'Excellent (70–100)',min:70,color:'#c3eee2'},{label:'Good (60–69)',min:60,color:'#cbe4ff'},{label:'Average (40–59)',min:40,color:'#ffe7c8'},{label:'Below pass mark (0–39)',min:0,color:'#ffd4e4'}];
  bands.forEach((b,i)=>b.count=scores.filter(x=>x>=b.min&&(i===0||x<bands[i-1].min)).length);
+ const percentage=count=>s.sat?(100*count/s.sat).toFixed(1)+'%':'—';
+ const excellentGrades=['A+','A','A-'].map(g=>g+' '+scores.filter(m=>gradeFor(m)===g).length).join(' · ');
+ const overviewCard=(label,value,detail)=>'<div class="card"><span>'+esc(label)+'</span><b>'+esc(String(value))+'</b><small>'+esc(detail)+'</small></div>';
  let cursor=0;const stops=bands.map(b=>{const start=cursor;cursor+=scores.length?b.count/scores.length*100:0;return b.color+' '+start+'% '+cursor+'%'}).join(',');
  const parts={};filtered(D.items).forEach(r=>{const score=num(r.Score),max=num(r.Max_Score);if(score===null||max===null||max<=0||score<0||score>max)return;const key=r.Paper||'Other';if(!parts[key])parts[key]={score:0,max:0};parts[key].score+=score;parts[key].max+=max});
  const papers=Object.entries(parts).map(([label,v])=>({label,value:100*v.score/v.max})).sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true}));
@@ -796,13 +809,18 @@ render=function(){
  const top=valid.slice().sort((a,b)=>mark(b)-mark(a)).slice(0,5);
  const focus=papers.slice().sort((a,b)=>a.value-b.value).slice(0,3);
  $('content').innerHTML='<div class="welcome"><p>Your teaching dashboard</p><h2>Here’s your '+esc($('form').value||'cohort')+' English overview <span>♡</span></h2><p>SPM '+esc($('cohort').value)+' · '+esc(examDisplayName($('exam').value))+' · Track progress, identify strengths and plan your next steps.</p></div>'+
- '<div class="cards">'+card('Total students',rows.length)+card('Average mark',s.avg==='—'?'—':s.avg+'%')+card('Highest score',highest===null?'—':highest+'%')+card('Lowest score',lowest===null?'—':lowest+'%')+'</div>'+
- '<div class="cards outcome-cards">'+card('Pass Rate (Peratus Lulus)',s.rate===null?'—':s.rate+'%')+card('Subject Grade Point Average (GPMP)',gpmp)+'</div><p class="muted metric-note">Peratus lulus: lulus ÷ calon hadir. GPMP: purata nilai gred (A+ = 0 hingga G = 9); lebih rendah lebih baik. TH dan markah kosong dikecualikan.</p>'+
+ '<div class="cards exam-summary">'+
+ overviewCard('Calon',s.sat,unique(rows.map(r=>r.Class_At_Exam)).length+' classes')+
+ overviewCard('GPMP',gpmp,'Lower is better')+
+ overviewCard('% Lulus (A+–E)',percentage(s.pass),s.pass+' of '+s.sat+' candidates')+
+ overviewCard('% Cemerlang (A+–A−)',percentage(bands[0].count),bands[0].count+' candidates · '+excellentGrades)+
+ overviewCard('% Gred G (Gagal)',percentage(s.fail),s.fail+' candidates')+
+ overviewCard('Purata markah',s.avg,s.sat?'Grade '+gradeFor(Number(s.avg)):'')+'</div>'+
  '<div class="overview-charts"><section><h2>Average Score by Paper</h2><p class="muted">'+(papers.length?'Based on recorded item scores; blanks are excluded.':'Paper scores have not been entered for this selection. Showing the overall mark.')+'</p><div class="paper-bars">'+bars.map(p=>'<div class="paper-col" style="--height:'+Math.max(1,p.value)+'%"><b>'+p.value.toFixed(1)+'%</b><span>'+esc(p.label)+'</span></div>').join('')+'</div></section>'+
  '<section><h2>Performance Breakdown</h2><div class="breakdown"><div class="donut" style="background:'+(scores.length?'conic-gradient('+stops+')':'#efedf8')+'"><span>'+esc(s.avg)+(scores.length?'%':'')+'<small>Average</small></span></div><ul>'+bands.map(b=>'<li><i class="dot" style="background:'+b.color+'"></i>'+b.label+'<b>'+b.count+'</b></li>').join('')+'</ul></div><p class="muted">'+s.sat+' valid marks · '+s.missing+' missing / absent · '+(s.rate===null?'—':s.rate+'%')+' pass rate</p></section></div>'+
  '<div class="overview-bottom"><section><button class="section-link" onclick="selectDashboardPage(\'Class performance\')">View classes →</button><h2>Top Performing Students</h2>'+table(['Name','Mark'],top.map(r=>[r.Student_Name,mark(r)]))+'</section>'+
  '<section><button class="section-link" onclick="selectDashboardPage(\'Item analysis\')">View analysis →</button><h2>Areas to Focus</h2>'+(focus.length?focus.map(p=>'<div class="focus-row"><span>'+esc(p.label)+'</span><b>'+p.value.toFixed(1)+'%</b></div>').join(''):'<p class="muted">Add paper or part scores to see which areas need the most support.</p>')+'<p class="muted">Papers ordered from lowest recorded accuracy.</p></section>'+
- '<section><h2>At a Glance</h2><div class="focus-row"><span>Classes</span><b>'+unique(rows.map(r=>r.Class_At_Exam)).length+'</b></div><div class="focus-row"><span>Passed</span><b>'+s.pass+'</b></div><div class="focus-row"><span>Below pass mark</span><b>'+s.fail+'</b></div><div class="focus-row"><span>Missing / absent</span><b>'+s.missing+'</b></div><p class="muted">Use Refresh from Sheet after updating marks.</p></section></div>';
+ '<section><h2>At a Glance</h2><div class="focus-row"><span>Highest score</span><b>'+(highest??'—')+'</b></div><div class="focus-row"><span>Lowest score</span><b>'+(lowest??'—')+'</b></div><div class="focus-row"><span>Classes</span><b>'+unique(rows.map(r=>r.Class_At_Exam)).length+'</b></div><div class="focus-row"><span>Passed</span><b>'+s.pass+'</b></div><div class="focus-row"><span>Below pass mark</span><b>'+s.fail+'</b></div><div class="focus-row"><span>Missing / absent</span><b>'+s.missing+'</b></div><p class="muted">Use Refresh from Sheet after updating marks.</p></section></div>';
 };
 
 let individualSelection=null,individualQuery='',individualClassKey='',individualBrowseStudent='';
