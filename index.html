@@ -810,7 +810,7 @@ render=function(){
  const focus=papers.slice().sort((a,b)=>a.value-b.value).slice(0,3);
  $('content').innerHTML='<div class="welcome"><p>Your teaching dashboard</p><h2>Here’s your '+esc($('form').value||'cohort')+' English overview <span>♡</span></h2><p>SPM '+esc($('cohort').value)+' · '+esc(examDisplayName($('exam').value))+' · Track progress, identify strengths and plan your next steps.</p></div>'+
  '<div class="cards exam-summary">'+
- overviewCard('Calon',s.sat,unique(rows.map(r=>r.Class_At_Exam)).length+' classes')+
+ overviewCard('Calon',s.sat,'Sat out of '+rows.length+' student records · '+unique(rows.map(r=>r.Class_At_Exam)).length+' classes')+
  overviewCard('GPMP',gpmp,'Lower is better')+
  overviewCard('% Lulus (A+–E)',percentage(s.pass),s.pass+' of '+s.sat+' candidates')+
  overviewCard('% Cemerlang (A+–A−)',percentage(bands[0].count),bands[0].count+' candidates · '+excellentGrades)+
