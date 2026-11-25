@@ -220,6 +220,7 @@ nav button:nth-child(3):before{content:"♙"}nav button:nth-child(4):before{cont
 .murid-name,.murid-class{overflow-wrap:anywhere}
 .murid-grade li strong,.murid-labels span:last-child{text-align:right;font-variant-numeric:tabular-nums}
 .murid-labels{background:#f5f6fa;font-size:.85em;font-weight:700}
+.exam-trend svg{display:block;width:100%;max-width:760px;max-height:300px;margin:12px auto;font:12px system-ui;fill:#33435b}.exam-trend .scroll{overflow-x:auto}.exam-trend th,.exam-trend td{white-space:nowrap}.exam-trend td:first-child,.exam-trend th:first-child{position:sticky;left:0;background:white}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">SPM Cohort / Form / Exam</label>
@@ -818,6 +819,58 @@ if(tab==='Item analysis'){
 $('content').innerHTML=html}
 $('exam').onchange=()=>{selectedStudentFocus='';setClasses();render()};$('classFilter').onchange=()=>{selectedStudentFocus='';render()};$('search').oninput=()=>{updateStudentLookup();if(tab!=='Overview'&&tab!=='Class performance')render()};if(urlSettings.get('setup')==='1')showConnectionSetup();
 const gradePalette=['#08634c','#14823b','#22bf60','#0d7691','#397ff2','#6262ed','#a652ef','#e5ab08','#ef7516','#ef4444'];
+function perbandinganPeperiksaan(){
+ const cohort=$('cohort').value,kelas=$('classFilter').value,selected=$('exam').value;
+ const stages=['TOV','AR1','AR2','AR3','ETR'];
+ const titles=['TOV (PPT F4)','AR1 (PAT F4)','AR2 (PPT F5)','AR3 (PPC F5)','ETR (Sasaran)'];
+ const marks=stages.map(()=>[]);
+ for(const row of D.results){
+  const index=stages.indexOf(row.Exam);
+  if(index<0||index>3||String(row.SPM_Cohort)!==cohort||(kelas&&row.Class_At_Exam!==kelas))continue;
+  const value=mark(row);
+  if(value!==null)marks[index].push(value);
+ }
+ for(const row of D.tracker.slice(3)){
+  if(!row[2]||String(row[0])!==cohort||(kelas&&row[1]!==kelas))continue;
+  const grade=gradeFor(row[17],row[18]);
+  if(grade&&grade!=='TH')marks[4].push(Number(row[17]));
+ }
+ const summary=marks.map(values=>{
+  if(!values.length)return null;
+  const pass=values.filter(v=>v>=D.passMark).length;
+  return {sat:values.length,pass,rate:100*pass/values.length,
+   gpmp:values.reduce((sum,v)=>sum+ALL_GRADES.indexOf(gradeFor(v)),0)/values.length,
+   excellent:values.filter(v=>v>=70).length};
+ });
+ const x=i=>48+88*i,y=v=>152-v*1.24;
+ const grid=[0,25,50,75,100].map(v=>'<line x1="40" x2="413" y1="'+y(v)+'" y2="'+y(v)+'" stroke="#e2e6ee"/><text x="34" y="'+(y(v)+4)+'" text-anchor="end">'+v+'%</text>').join('');
+ let plot='',previous=-1;
+ summary.forEach((point,i)=>{
+  if(!point)return;
+  if(previous>=0&&(previous===i-1||i===4)){
+   plot+='<line x1="'+x(previous)+'" y1="'+y(summary[previous].rate)+'" x2="'+x(i)+'" y2="'+y(point.rate)+'" stroke="'+(i===4?'#995819':'#196f72')+'" stroke-width="2.5" '+(i===4?'stroke-dasharray="5 4"':'')+'/>';
+  }
+  previous=i;
+ });
+ const labels=stages.map((stage,i)=>{
+  const p=summary[i],color=i===4?'#995819':'#196f72';
+  return '<text x="'+x(i)+'" y="174" text-anchor="middle">'+stage+'</text>'+(p?'<circle cx="'+x(i)+'" cy="'+y(p.rate)+'" r="4" fill="'+color+'"/><text x="'+x(i)+'" y="'+(y(p.rate)-9)+'" text-anchor="middle">'+p.rate.toFixed(1)+'%</text>':'');
+ }).join('');
+ const metrics=[['Calon hadir / calon ETR','sat',0],['Bilangan lulus','pass',0],['Peratus lulus','rate',1],['GPMP','gpmp',2],['Bilangan cemerlang (A− hingga A+)','excellent',0]];
+ const current=stages.indexOf(selected),prior=summary.slice(0,Math.max(0,current)).findLastIndex(Boolean);
+ const compare=current>0&&current<4&&summary[current]&&prior>=0;
+ const headings=['Ukuran',...titles];
+ if(compare)headings.push('Perubahan '+stages[prior]+' → '+selected);
+ const lines=metrics.map(([name,key,digits])=>{
+  const cells=[name,...summary.map(p=>p?p[key].toFixed(digits)+(key==='rate'?'%':''):'—')];
+  if(compare){
+   const delta=Number((summary[current][key]-summary[prior][key]).toFixed(digits));
+   cells.push((delta>0?'+':'')+delta.toFixed(digits)+(key==='rate'?' mata peratus':''));
+  }
+  return cells;
+ });
+ return '<section class="taburan-gred exam-trend" lang="ms"><h2>Perbandingan Peperiksaan</h2><p>Peratus lulus Bahasa Inggeris · Kohort SPM '+esc(cohort)+(kelas?' · '+esc(kelas):'')+'</p><svg viewBox="0 0 432 184" role="img" aria-label="Trend peratus lulus dari TOV hingga sasaran ETR. Nilai terperinci dalam jadual di bawah.">'+grid+plot+labels+'</svg>'+table(headings,lines)+'<p class="muted">'+(summary[4]?'ETR dikira daripada '+summary[4].sat+' sasaran individu.':'Sasaran ETR belum direkodkan.')+' Tanda — menunjukkan tiada data.</p></section>';
+}
 function taburanGred(scores){
  const grades=ALL_GRADES.filter(g=>g!=='TH');
  const counts=Object.fromEntries(grades.map(g=>[g,0]));
@@ -915,7 +968,7 @@ render=function(){
  overviewCard('% Lulus (A+–E)',percentage(s.pass),s.pass+' of '+s.sat+' candidates')+
  overviewCard('% Cemerlang (A+–A−)',percentage(excellentCount),excellentCount+' candidates · '+excellentGrades)+
  overviewCard('% Gred G (Gagal)',percentage(s.fail),s.fail+' candidates')+
- overviewCard('Purata markah',s.avg,s.sat?'Grade '+gradeFor(Number(s.avg)):'')+'</div>'+taburanGred(scores)+analisisGredKelas(rows)+senaraiMuridMengikutGred(valid)+
+ overviewCard('Purata markah',s.avg,s.sat?'Grade '+gradeFor(Number(s.avg)):'')+'</div>'+perbandinganPeperiksaan()+taburanGred(scores)+analisisGredKelas(rows)+senaraiMuridMengikutGred(valid)+
  '<section><button class="section-link" onclick="selectDashboardPage(\'Item analysis\')">View analysis →</button><h2>Areas to Focus</h2>'+(focus.length?focus.map(p=>'<div class="focus-row"><span>'+esc(p.label)+'</span><b>'+p.value.toFixed(1)+'%</b></div>').join(''):'<p class="muted">Add paper or part scores to see which areas need the most support.</p>')+'<p class="muted">Papers ordered from lowest recorded accuracy.</p></section>';
 };
 
