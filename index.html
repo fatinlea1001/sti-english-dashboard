@@ -1006,6 +1006,9 @@ function renderClassPerformance(rows){
 }
 
 let guruCohort='',guruClassLinks=[];
+// Temporary verified 2026 snapshot. The live teacher feed takes priority once deployed.
+const guruTeacherSnapshot=[{"SPM_Cohort":"2027","Academic_Year":"2026","Form":"Form 4","Class":"ARIF","Teacher_Name":"PN RAFEDAH BINTI MOHAMMAD SHAFFI"},{"SPM_Cohort":"2027","Academic_Year":"2026","Form":"Form 4","Class":"BESTARI","Teacher_Name":"PN DIYANA BINTI SAIDI JAPRI"},{"SPM_Cohort":"2027","Academic_Year":"2026","Form":"Form 4","Class":"CEMERLANG","Teacher_Name":"PN FATIN ELIYA BINTI SAIF"},{"SPM_Cohort":"2027","Academic_Year":"2026","Form":"Form 4","Class":"DEDIKASI","Teacher_Name":"PN NURSYAFIQAH SYAZWAN BINTI MUHAMAD KHALID"},{"SPM_Cohort":"2027","Academic_Year":"2026","Form":"Form 4","Class":"EHSAN","Teacher_Name":"PN RAFEDAH BINTI MOHAMMAD SHAFFI"},{"SPM_Cohort":"2027","Academic_Year":"2026","Form":"Form 4","Class":"FITRAH","Teacher_Name":"PN FATIN ELIYA BINTI SAIF"},{"SPM_Cohort":"2027","Academic_Year":"2026","Form":"Form 4","Class":"GEMILANG","Teacher_Name":"PN FATIN ELIYA BINTI SAIF"},{"SPM_Cohort":"2027","Academic_Year":"2026","Form":"Form 4","Class":"HARAPAN","Teacher_Name":"PN RAFEDAH BINTI MOHAMMAD SHAFFI"},{"SPM_Cohort":"2027","Academic_Year":"2026","Form":"Form 4","Class":"INTELEK","Teacher_Name":"CIK JULIA ASMIRA BINTI SULAIMAN"},{"SPM_Cohort":"2027","Academic_Year":"2026","Form":"Form 4","Class":"PVMA","Teacher_Name":"PN NURSYAFIQAH SYAZWAN BINTI MUHAMAD KHALID"},{"SPM_Cohort":"2026","Academic_Year":"2026","Form":"Form 5","Class":"ARIF","Teacher_Name":"CIK JULIA ASMIRA BINTI SULAIMAN"},{"SPM_Cohort":"2026","Academic_Year":"2026","Form":"Form 5","Class":"BESTARI","Teacher_Name":"PN FATIN ELIYA BINTI SAIF"},{"SPM_Cohort":"2026","Academic_Year":"2026","Form":"Form 5","Class":"CEMERLANG","Teacher_Name":"PN DIYANA BINTI SAIDI JAPRI"},{"SPM_Cohort":"2026","Academic_Year":"2026","Form":"Form 5","Class":"DEDIKASI","Teacher_Name":"PN FATIN ELIYA BINTI SAIF"},{"SPM_Cohort":"2026","Academic_Year":"2026","Form":"Form 5","Class":"EHSAN","Teacher_Name":"PN RAFEDAH BINTI MOHAMMAD SHAFFI"},{"SPM_Cohort":"2026","Academic_Year":"2026","Form":"Form 5","Class":"FITRAH","Teacher_Name":"PN NURSYAFIQAH SYAZWAN BINTI MUHAMAD KHALID"},{"SPM_Cohort":"2026","Academic_Year":"2026","Form":"Form 5","Class":"GEMILANG","Teacher_Name":"PN RAFEDAH BINTI MOHAMMAD SHAFFI"},{"SPM_Cohort":"2026","Academic_Year":"2026","Form":"Form 5","Class":"HARAPAN","Teacher_Name":"PN NUR BISYARAH BINTI ABDULLAH SANI"},{"SPM_Cohort":"2026","Academic_Year":"2026","Form":"Form 5","Class":"INTELEK","Teacher_Name":"CIK JULIA ASMIRA BINTI SULAIMAN"},{"SPM_Cohort":"2026","Academic_Year":"2026","Form":"Form 5","Class":"PVMA","Teacher_Name":"PN NURSYAFIQAH SYAZWAN BINTI MUHAMAD KHALID"}];
+
 function guruClassRecords(){
  const records=new Map();
  const add=(cohort,year,form,cls,teacher)=>{
@@ -1016,7 +1019,7 @@ function guruClassRecords(){
   if(String(teacher??'').trim())records.get(key).teachers.add(String(teacher).trim());
  };
  for(const r of D.results)add(r.SPM_Cohort,r.Academic_Year,r.Form,r.Class_At_Exam,'');
- for(const r of (D.teachers||[]))add(r.SPM_Cohort,r.Academic_Year,r.Form,r.Class,r.Teacher_Name);
+ for(const r of (Array.isArray(D.teachers)?D.teachers:guruTeacherSnapshot))add(r.SPM_Cohort,r.Academic_Year,r.Form,r.Class,r.Teacher_Name);
  return [...records.values()].sort((a,b)=>Number(b.cohort)-Number(a.cohort)||Number(a.year)-Number(b.year)||itemSort(a.form,b.form)||itemSort(a.cls,b.cls));
 }
 function guruLatestExam(entry){
@@ -1042,7 +1045,7 @@ function renderGuru(){
  const selected=all.filter(r=>r.cohort===guruCohort);
  guruClassLinks=selected;
  let html='<div class="guru-page" lang="ms"><section class="guru-heading"><h2>Senarai Guru Bahasa Inggeris</h2><p>Senarai guru mengikut kohort dan tingkatan. Klik nama kelas untuk melihat prestasi kelas.</p></section><section class="guru-picker"><label for="guru-cohort">Kohort SPM</label><select id="guru-cohort" onchange="chooseGuruCohort(this.value)">'+cohorts.map(c=>'<option value="'+esc(c)+'"'+(c===guruCohort?' selected':'')+'>SPM '+esc(c)+'</option>').join('')+'</select><button type="button" class="guru-refresh" onclick="load()">Muat semula data</button></section>';
- if(!Array.isArray(D.teachers))html+='<p class="guru-note">Sambungan senarai guru belum dikemas kini. Senarai kelas berdasarkan rekod peperiksaan; nama guru belum tersedia daripada suapan data.</p>';
+ if(!Array.isArray(D.teachers))html+='<p class="guru-note">Nama guru dipaparkan daripada salinan rekod 2026. Sambungan langsung Google Sheets akan digunakan selepas deployment Apps Script dikemas kini.</p>';
  if(!selected.length)html+='<section><p>Tiada kelas direkodkan bagi kohort ini.</p></section>';
  const stages=[...new Set(selected.map(r=>JSON.stringify([r.year,r.form])))];
  for(const stage of stages){
