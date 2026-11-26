@@ -46,6 +46,9 @@ function buildDashboardResponse_() {
   const interventions = toDashboardObjects_(getDashboardTab_(ss, 'INTERVENTION'));
   const items = toDashboardObjects_(getDashboardTab_(ss, 'ITEM_ANALYSIS_DATA'))
     .filter(row => row.Student_Name);
+  const teachers = ss.getSheetByName('TEACHER_ASSIGNMENT')
+    ? toDashboardObjects_(getDashboardTab_(ss, 'TEACHER_ASSIGNMENT'))
+    : [];
   const tracker = getDashboardTab_(ss, 'HEADCOUNT_TRACKER');
   const settings = getDashboardTab_(ss, 'SETTINGS');
   const passRow = settings.find(row => String(row[0]).trim() === 'Official Pass Mark (0–100)');
@@ -60,6 +63,7 @@ function buildDashboardResponse_() {
     interventions: interventions,
     items: items,
     tracker: tracker,
+    teachers: teachers,
     passMark: passMark,
     updated: new Date().toISOString()
   };
