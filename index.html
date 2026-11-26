@@ -236,6 +236,8 @@ nav button:nth-child(3):before{content:"♙"}nav button:nth-child(4):before{cont
 
 /* Intervention dashboard */
 .iv-section .iv-groups{display:grid;gap:10px}.iv-group{border:1px solid #e1e4ef;border-radius:9px;overflow:hidden}.iv-group summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;padding:13px 16px;list-style:none}.iv-group summary::-webkit-details-marker{display:none}.iv-group summary:before{content:'▸';font-weight:700}.iv-group[open] summary:before{content:'▾'}.iv-group summary span{flex:1}.iv-group summary b{display:block}.iv-group summary small{display:block;margin-top:3px;line-height:1.4}.iv-group summary strong{font-size:23px;font-variant-numeric:tabular-nums}.iv-group summary:focus-visible,.iv-scroll:focus-visible{outline:2px solid #8072bb;outline-offset:-2px}.iv-low{background:#f4c6c6;color:#762e35}.iv-mid{background:#fae7b4;color:#704c15}.iv-high{background:#c5e9d4;color:#155741}.iv-neutral{background:#eef0f5;color:#465571}.iv-blue{background:#dde8f9;color:#344d86}.iv-scroll{max-height:360px;overflow:auto;scrollbar-gutter:stable}.iv-scroll table{min-width:560px}.iv-scroll th{position:sticky;top:0;z-index:2;background:#f3f0fa}.iv-scroll td{vertical-align:top}.iv-scroll td:first-child{white-space:normal;min-width:180px}.iv-group .muted{padding:0 14px}.iv-negative{color:#a0323e;font-weight:700}.iv-positive{color:#15735b;font-weight:700}
+
+.class-summary-heading .class-summary-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}.class-summary-heading .class-summary-cards .card{margin:0;min-height:105px}.class-summary-heading .class-summary-cards .card:nth-child(2) b,.class-summary-heading .class-summary-cards .card:nth-child(3) b{color:#16866a}.class-summary-heading .class-summary-cards .card:nth-child(4) b{color:#b74c4c}.class-trend-note{margin:-10px 0 20px;padding:0 8px}@media(max-width:750px){.class-summary-heading .class-summary-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:380px){.class-summary-heading .class-summary-cards .card{padding-left:12px}.class-summary-heading .class-summary-cards .card:before{display:none}}
 </style></head><body><header><small>SMK TUN ISMAIL · ENGLISH PANEL</small><h1>ENGLISH LANGUAGE DASHBOARD</h1><p>SPM cohorts · Progress, targets & focused support</p></header><main><div class="filters">
  <div class="cohort-picker" id="cohort-picker">
   <label for="cohort-trigger">Kohort SPM / Tingkatan / Peperiksaan</label>
@@ -953,20 +955,55 @@ function renderIntervention(){
  else html+=interventionTable(['Murid / kumpulan','Kelas','Peperiksaan','Kertas / Bahagian','Intervensi','Tarikh mula','Tarikh susulan','Status','Catatan'],records.map(r=>[r.Student_Name||'—',r.Class,r.Exam,[paperLabelMS(r.Weak_Paper),partLabelMS(r.Weak_Part)].filter(Boolean).join(' / '),r.Intervention,r.Start_Date,r.Follow_Up_Date,r.Status,r.Notes].map(x=>esc(x||'—'))));
  return html+'</section>';
 }
+
+function classGPMP(rows){
+ const scores=rows.map(mark).filter(v=>v!==null);
+ return scores.length?(scores.reduce((sum,v)=>sum+ALL_GRADES.indexOf(gradeFor(v)),0)/scores.length).toFixed(2):'—';
+}
+function classPaperAnalysis(){
+ const cohort=$('cohort').value,exam=$('exam').value,form=$('form').value,cls=$('classFilter').value;
+ const valid=D.items.filter(r=>{
+  const score=num(r.Score),max=num(r.Max_Score);
+  return String(r.SPM_Cohort)===cohort&&r.Exam===exam&&(!form||r.Form===form)&&(r.Class_At_Exam||'Unassigned')===cls&&String(r.Student_Name||'').trim()&&String(r.Paper||'').trim()&&score!==null&&max!==null&&max>0&&score>=0&&score<=max;
+ });
+ const studentPapers=new Map(),groups=new Map();
+ for(const r of valid){
+  const k=JSON.stringify([String(r.Student_Name).trim().toUpperCase(),r.Paper]);
+  if(!studentPapers.has(k))studentPapers.set(k,[]);
+  studentPapers.get(k).push(r);
+ }
+ for(const records of studentPapers.values()){
+  const overall=records.find(r=>/^(overall|total|jumlah|keseluruhan)$/i.test(String(r.Part).trim()));
+  for(const r of (overall?[overall]:records))itemAdd(groups,r.Paper,r);
+ }
+ const papers=[...groups.entries()].sort((a,b)=>itemSort(a[0],b[0]));
+ return '<section class="taburan-gred ia-section" lang="ms"><h2>Analisis Mengikut Kertas</h2><p>Peratus pencapaian kertas bagi kelas dan peperiksaan yang dipilih.</p>'+
+ (papers.length?papers.map(([paper,g])=>itemBar(itemPaperLabel(paper),itemPercent(g),g.names.size)).join('')+'<p class="muted">Berdasarkan markah sah yang direkodkan. Rekod keseluruhan dan bahagian tidak dikira dua kali. Kertas tanpa data tidak dipaparkan.</p>':'<p class="muted">Tiada data analisis kertas bagi kelas dan peperiksaan ini.</p>')+'</section>';
+}
+function renderClassPerformance(rows){
+ const cls=$('classFilter').value,s=stats(rows),label=cls==='Unassigned'?'Tiada kelas':cls;
+ const classes=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));
+ let html=classPerformanceSelector();
+ if(cls){
+  html+='<section class="taburan-gred class-summary-heading" lang="ms"><h2>Ringkasan Prestasi Kelas · '+esc(label)+'</h2><p>Kohort SPM '+esc($('cohort').value)+' · '+esc(examDisplayName($('exam').value))+'</p><div class="cards class-summary-cards">'+
+   card('Calon Menduduki',s.sat)+card('Peratus Lulus',s.rate===null?'—':s.rate+'%')+card('Bilangan Lulus',s.pass)+card('Bilangan Gagal',s.fail)+card('Purata Markah',s.avg)+card('GPMP',classGPMP(rows))+'</div><p class="muted">Daripada '+s.count+' rekod murid · '+s.missing+' tanpa markah sah / tidak hadir. GPMP lebih rendah menunjukkan prestasi lebih baik.</p></section>';
+  html+=perbandinganPeperiksaan()+'<p class="muted class-trend-note">Perbandingan berdasarkan kelas yang direkodkan pada setiap peperiksaan; keahlian kelas mungkin berubah. Sasaran kohort tidak dianggap sebagai sasaran kelas.</p>';
+  html+=taburanGred(rows.map(mark).filter(v=>v!==null));
+  html+=classPaperAnalysis();
+ }else{
+  html+='<section class="taburan-gred ia-section" lang="ms"><h2>Peratus Lulus Mengikut Kelas</h2><p>Peratus calon dengan markah sah bagi setiap kelas.</p>'+
+  (classes.length?classes.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return itemBar(c==='Unassigned'?'Tiada kelas':c,a.rate===null?null:Number(a.rate),a.sat)}).join(''):'<p class="muted">Tiada data kelas bagi peperiksaan ini.</p>')+'</section>';
+  html+='<section class="taburan-gred" lang="ms"><h2>Butiran Kelas</h2>'+table(['Kelas','Menduduki','Lulus','Gagal','Purata Markah','GPMP'],classes.map(c=>{const records=rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c),a=stats(records);return[c==='Unassigned'?'Tiada kelas':c,a.sat,a.pass,a.fail,a.avg,classGPMP(records)]}))+'</section>';
+  html+=taburanGred(rows.map(mark).filter(v=>v!==null));
+ }
+ html+='<section class="taburan-gred" lang="ms"><h2>Senarai Murid · '+esc(label||'Semua kelas')+'</h2>'+
+  (selectedStudentFocus?'<div class="student-jump-note">Murid '+esc(selectedStudentFocus)+' ditandakan dalam senarai di bawah.</div>':'')+
+  '<p class="muted">Klik nama murid untuk melihat laporan individu. TH bermaksud tidak hadir; markah belum direkodkan tidak dikira gagal.</p>'+classStudentResults(rows)+'</section>';
+ return html;
+}
 function render(){if(!D)return;updateCohortSummary();$('nav').innerHTML=[['Overview','RINGKASAN PRESTASI'],['Class performance','PRESTASI KELAS'],['Individual student','PRESTASI INDIVIDU'],['Interventions','INTERVENSI'],['Item analysis','ANALISIS ITEM']].map(([t,label])=>'<button class="'+(t===tab?'active':'')+'" data-page="'+esc(t)+'" onclick="selectDashboardPage(this.dataset.page)">'+label+'</button>').join('');const rows=filtered(D.results),s=stats(rows);let html='';if(tab==='Overview'){html='<section class="intro"><h2>Ringkasan kohort</h2><p>SPM '+esc($('cohort').value)+' · '+esc(examDisplayName($('exam').value))+' · Panduan tindakan pengajaran seterusnya</p></section><div class="cards">'+card('Rekod peperiksaan murid',s.count)+card('Menduduki / markah sah',s.sat)+card('Lulus',s.pass)+card('Gagal',s.fail)+card('Tiada markah / tidak hadir',s.missing)+card('Peratus lulus',s.rate===null?'—':s.rate+'%')+card('Purata markah',s.avg)+card('Kelas',unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).length)+'</div><section><h2>Prestasi Kelas · '+esc(examDisplayName($('exam').value))+'</h2><p class="muted">Peratus lulus = bilangan lulus ÷ calon dengan markah sah. Markah kosong tidak dikira sebagai sifar.</p>'+table(['Kelas','Rekod','Menduduki','Lulus','Gagal','Tiada markah / tidak hadir','% Lulus','Purata'],unique(rows.map(r=>r.Class_At_Exam||'Unassigned')).map(c=>{let a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return [c,a.count,a.sat,a.pass,a.fail,a.missing,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section><section><h2>Perkembangan Peperiksaan</h2><p class="muted">Kelas berdasarkan rekod setiap peperiksaan; murid mungkin berpindah kelas.</p>'+table(['Peperiksaan','Menduduki','% Lulus','Purata'],['TOV','AR1','AR2','AR3','SPM'].map(e=>{let a=stats(filtered(D.results,false).filter(r=>r.Exam===e));return[e,a.sat,a.rate===null?'—':a.rate+'%',a.avg]}))+'</section>'}
-if(tab==='Overview'||tab==='Class performance'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Peratus Lulus Mengikut Kelas</h2><p class="muted">Peratus calon dengan markah sah</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Taburan Lulus dan Gagal</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>peratus lulus</small></span></div><p class="legend">● Lulus '+s.pass+' &nbsp; / &nbsp; Gagal '+s.fail+' · Menduduki '+s.sat+'</p>':'<p class="muted">Belum ada markah sah.</p>')+'</section></div>';html=(tab==='Class performance'?classPerformanceSelector():'')+charts+html;if(tab==='Class performance'){
- const className=$('classFilter').value;
- html+='<section><h2>Butiran Kelas</h2>'+table(['Kelas','Menduduki','Lulus','Gagal','Purata'],
-  classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));
-   return[c,a.sat,a.pass,a.fail,a.avg]}))+'</section>';
- html+='<section><h2>Taburan Gred · '+esc(className||'Semua kelas')+'</h2>'+
-  '<p class="muted">Bilangan mengikut gred bagi kohort, peperiksaan, tingkatan dan kelas yang dipilih. Semua gred dipaparkan, termasuk bilangan sifar.</p>'+
-  gradeDistribution(rows)+'</section>';
- html+='<section><h2>Senarai Murid · '+esc(className||'Semua kelas')+'</h2>'+
-  (selectedStudentFocus?'<div class="student-jump-note">Student '+esc(selectedStudentFocus)+' is highlighted below.</div>':'')+
-  '<p class="muted">Nama dan keputusan murid bagi pilihan kohort, tingkatan dan peperiksaan. TH bermaksud tidak hadir; markah belum direkodkan tidak dikira gagal.</p>'+
-  classStudentResults(rows)+'</section>';
-}}
+if(tab==='Overview'){const classRows=unique(rows.map(r=>r.Class_At_Exam||'Unassigned'));let charts='<div class="split"><section><h2>Peratus Lulus Mengikut Kelas</h2><p class="muted">Peratus calon dengan markah sah</p>'+classRows.map(c=>{const a=stats(rows.filter(r=>(r.Class_At_Exam||'Unassigned')===c));return '<div class="chartrow"><strong>'+esc(c)+'</strong><div class="track"><i style="width:'+(a.rate||0)+'%"></i></div><span>'+(a.rate===null?'—':a.rate+'%')+'</span></div>'}).join('')+'</section><section><h2>Taburan Lulus dan Gagal</h2>'+(s.sat?'<div class="donut" style="background:conic-gradient(#10a88b 0 '+s.rate+'%,#eb7082 '+s.rate+'% 100%)"><span>'+s.rate+'%<small>peratus lulus</small></span></div><p class="legend">● Lulus '+s.pass+' &nbsp; / &nbsp; Gagal '+s.fail+' · Menduduki '+s.sat+'</p>':'<p class="muted">Belum ada markah sah.</p>')+'</section></div>';html=charts+html;}
+if(tab==='Class performance')html=renderClassPerformance(rows);
 
 if(tab==='Headcount & targets'){let tr=D.tracker.slice(3).filter(r=>r[2]&&String(r[0])===$('cohort').value&&(!$('classFilter').value||r[1]===$('classFilter').value)&&String(r[2]).toLowerCase().includes($('search').value.trim().toLowerCase()));html='<section><h2>Headcount Individu</h2><p class="muted">M = Markah · G = Gred · TH = Tidak hadir</p>'+table(['Kohort','Kelas','Murid','TOV M','TOV G','AR1 M','AR1 G','AR2 M','AR2 G','AR3 M','AR3 G','ETR M','ETR G'],tr.map(trackerWithGrades))+'</section><section><h2>Sasaran Kelas · '+esc(examDisplayName($('exam').value))+'</h2>'+table(['Tahun','Kelas','Sasaran lulus','% Sasaran lulus','Catatan'],filtered(D.targets).map(r=>[r.Academic_Year,r.Class,r.Target_Passes,r['Target_Pass_%'],r.Notes]))+'</section>'}
 if(tab==='Interventions')html=renderIntervention();
